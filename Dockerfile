@@ -48,10 +48,12 @@ FROM node:20-alpine AS node-builder
 WORKDIR /app
 
 # Copy package files for dependency caching
-COPY package.json package-lock.json* ./
+COPY package.json ./
 
-# Install dependencies (npm ci installs all dependencies including devDependencies by default)
-RUN npm ci
+# Install dependencies
+# Using npm install instead of npm ci since package-lock.json is gitignored
+# This will generate a new package-lock.json during build
+RUN npm install
 
 # Copy Rust build output
 COPY --from=rust-builder /app/pkg ./pkg
