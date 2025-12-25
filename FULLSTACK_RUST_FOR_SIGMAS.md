@@ -1451,13 +1451,17 @@ console_error_panic_hook = "0.1"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 ```
 
-### Step 2: Add Crate to Workspace
+#### Step 2: Add Crate to Workspace
 
 Update the root `Cargo.toml`:
 
 ```toml:Cargo.toml
 [workspace]
-members = ["wasm-astar", "wasm-preprocess"]  # Add your crate here
+members = [
+  "wasm-astar",
+  "wasm-preprocess",
+  "wasm-agent-tools"  # Add your crate here
+]
 ```
 
 #### Step 3: Implement Rust Code
