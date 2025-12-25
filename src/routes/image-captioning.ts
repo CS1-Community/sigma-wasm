@@ -132,12 +132,10 @@ function validatePreprocessModule(exports: unknown): WasmModulePreprocessImageCa
   if (!('set_sepia' in exports)) {
     missingExports.push('set_sepia');
   }
-  if (!('get_sepia' in exports)) {
-    missingExports.push('get_sepia');
-  }
-  
+  // High-level functions are on the module object, not the init result
+  // Only check for memory in exports, functions are checked in wasmModuleExports below
   if (missingExports.length > 0) {
-    throw new Error(`WASM module missing required exports: ${missingExports.join(', ')}. Available exports: ${exportKeys.join(', ')}`);
+    throw new Error(`WASM module missing required exports: ${missingExports.join(', ')}. Available exports from init result: ${exportKeys.join(', ')}`);
   }
   
   // Get memory using proper type narrowing (already validated above)

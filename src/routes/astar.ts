@@ -67,29 +67,37 @@ function validateAstarModule(exports: unknown): WasmModuleAstar | null {
   const missingExports: string[] = [];
   
   // Check for required exports
+  // High-level functions are on the module object, not the init result
+  // Only check for memory in exports, functions are checked in wasmModuleExports below
   const memoryValue = getProperty(exports, 'memory');
   if (!memoryValue || !(memoryValue instanceof WebAssembly.Memory)) {
     missingExports.push('memory (WebAssembly.Memory)');
   }
-  if (!('wasm_init' in exports)) {
-    missingExports.push('wasm_init');
-  }
-  if (!('tick' in exports)) {
-    missingExports.push('tick');
-  }
-  if (!('key_down' in exports)) {
-    missingExports.push('key_down');
-  }
-  if (!('key_up' in exports)) {
-    missingExports.push('key_up');
-  }
-  if (!('mouse_move' in exports)) {
-    missingExports.push('mouse_move');
+  
+  // Check wasmModuleExports for functions, not exports
+  if (!wasmModuleExports) {
+    missingExports.push('module exports (wasmModuleExports is null)');
+  } else {
+    if (typeof wasmModuleExports.wasm_init !== 'function') {
+      missingExports.push('wasm_init (function)');
+    }
+    if (typeof wasmModuleExports.tick !== 'function') {
+      missingExports.push('tick (function)');
+    }
+    if (typeof wasmModuleExports.key_down !== 'function') {
+      missingExports.push('key_down (function)');
+    }
+    if (typeof wasmModuleExports.key_up !== 'function') {
+      missingExports.push('key_up (function)');
+    }
+    if (typeof wasmModuleExports.mouse_move !== 'function') {
+      missingExports.push('mouse_move (function)');
+    }
   }
   
   if (missingExports.length > 0) {
     // Throw error with details for debugging
-    throw new Error(`WASM module missing required exports: ${missingExports.join(', ')}. Available exports: ${exportKeys.join(', ')}`);
+    throw new Error(`WASM module missing required exports: ${missingExports.join(', ')}. Available exports from init result: ${exportKeys.join(', ')}`);
   }
   
   // At this point we know memory exists and is WebAssembly.Memory

@@ -53,18 +53,25 @@ function validateAgentToolsModule(exports: unknown): WasmModuleAgentTools | null
   if (!memoryValue || !(memoryValue instanceof WebAssembly.Memory)) {
     missingExports.push('memory (WebAssembly.Memory)');
   }
-  if (!('calculate' in exports)) {
-    missingExports.push('calculate');
-  }
-  if (!('process_text' in exports)) {
-    missingExports.push('process_text');
-  }
-  if (!('get_stats' in exports)) {
-    missingExports.push('get_stats');
+  
+  // High-level functions are on the module object, not the init result
+  // Check wasmModuleExports for functions, not exports
+  if (!wasmModuleExports) {
+    missingExports.push('module exports (wasmModuleExports is null)');
+  } else {
+    if (typeof wasmModuleExports.calculate !== 'function') {
+      missingExports.push('calculate (function)');
+    }
+    if (typeof wasmModuleExports.process_text !== 'function') {
+      missingExports.push('process_text (function)');
+    }
+    if (typeof wasmModuleExports.get_stats !== 'function') {
+      missingExports.push('get_stats (function)');
+    }
   }
   
   if (missingExports.length > 0) {
-    throw new Error(`WASM module missing required exports: ${missingExports.join(', ')}. Available exports: ${exportKeys.join(', ')}`);
+    throw new Error(`WASM module missing required exports: ${missingExports.join(', ')}. Available exports from init result: ${exportKeys.join(', ')}`);
   }
   
   const memory = memoryValue;
@@ -72,7 +79,7 @@ function validateAgentToolsModule(exports: unknown): WasmModuleAgentTools | null
     return null;
   }
   
-  // Construct module object from exports using type narrowing
+  // Construct module object from memory (from init result) and functions (from module object)
   if (!wasmModuleExports) {
     return null;
   }

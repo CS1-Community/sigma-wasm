@@ -106,38 +106,16 @@ function validatePreprocessModule(exports: unknown): WasmModulePreprocess | null
   const missingExports: string[] = [];
   
   // Check for required exports
+  // High-level functions are on the module object, not the init result
+  // Only check for memory in exports, functions are checked in wasmModuleExports below
   const memoryValue = getProperty(exports, 'memory');
   if (!memoryValue || !(memoryValue instanceof WebAssembly.Memory)) {
     missingExports.push('memory (WebAssembly.Memory)');
   }
-  if (!('preprocess_image' in exports)) {
-    missingExports.push('preprocess_image');
-  }
-  if (!('apply_contrast' in exports)) {
-    missingExports.push('apply_contrast');
-  }
-  if (!('apply_cinematic_filter' in exports)) {
-    missingExports.push('apply_cinematic_filter');
-  }
-  if (!('get_preprocess_stats' in exports)) {
-    missingExports.push('get_preprocess_stats');
-  }
-  if (!('set_contrast' in exports)) {
-    missingExports.push('set_contrast');
-  }
-  if (!('set_cinematic' in exports)) {
-    missingExports.push('set_cinematic');
-  }
-  if (!('get_contrast' in exports)) {
-    missingExports.push('get_contrast');
-  }
-  if (!('get_cinematic' in exports)) {
-    missingExports.push('get_cinematic');
-  }
   
   if (missingExports.length > 0) {
     // Throw error with details for debugging
-    throw new Error(`WASM module missing required exports: ${missingExports.join(', ')}. Available exports: ${exportKeys.join(', ')}`);
+    throw new Error(`WASM module missing required exports: ${missingExports.join(', ')}. Available exports from init result: ${exportKeys.join(', ')}`);
   }
   
   // At this point we know memory exists and is WebAssembly.Memory
