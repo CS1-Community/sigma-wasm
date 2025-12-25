@@ -16,6 +16,12 @@ RUN apk add --no-cache \
 # Using 0.2.106 which is compatible with Rust 1.71+ and matches "0.2" in Cargo.toml
 RUN cargo install wasm-bindgen-cli --version 0.2.106
 
+# Ensure wasm-bindgen is in PATH (cargo install puts it in ~/.cargo/bin)
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Verify wasm-bindgen is accessible and correct version
+RUN wasm-bindgen --version || (echo "ERROR: wasm-bindgen not found in PATH" && exit 1)
+
 # Install wasm-opt from binaryen
 RUN apk add --no-cache binaryen
 
@@ -55,8 +61,28 @@ COPY scripts ./scripts
 # Make build scripts executable
 RUN chmod +x scripts/build.sh scripts/build-wasm.sh
 
-# Build WASM module
+# Build WASM modules
 RUN ./scripts/build.sh
+
+# Verify all WASM modules were built correctly (build.sh already does this, but add extra verification)
+# This catches any issues before copying to next stage
+RUN echo "Verifying WASM module files in pkg/..." && \
+    for js_file in pkg/*/wasm_*.js; do \
+      if [ ! -f "$js_file" ]; then \
+        echo "ERROR: Missing JS file: $js_file" >&2; \
+        exit 1; \
+      fi; \
+      size=$(stat -c%s "$js_file" 2>/dev/null || echo "0"); \
+      if [ "$size" -lt 8000 ]; then \
+        echo "ERROR: JS file too small: $js_file ($size bytes)" >&2; \
+        exit 1; \
+      fi; \
+      if ! grep -q "export" "$js_file"; then \
+        echo "ERROR: JS file has no exports: $js_file" >&2; \
+        exit 1; \
+      fi; \
+    done && \
+    echo "✓ All WASM module files verified successfully"
 
 # Stage 2: Node.js Frontend Builder
 # Using node:22-alpine to meet Vite 7 requirements (>=22.12.0) and align with local dev environment
