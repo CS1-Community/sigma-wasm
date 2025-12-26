@@ -219,8 +219,12 @@ export const init = async (): Promise<void> => {
     if (!cachedRect) {
       updateCachedRect();
     }
-    const x = e.clientX - cachedRect.left;
-    const y = e.clientY - cachedRect.top;
+    const rect = cachedRect;
+    if (!rect) {
+      return;
+    }
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     if (WASM_ASTAR.wasmModule) {
       WASM_ASTAR.wasmModule.mouse_move(x, y);
     }

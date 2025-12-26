@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Chat - Sigma WASM</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/webp" href="/rustacean.webp">
+    <link rel="apple-touch-icon" href="/rustacean.webp">
+    <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+    <div id="fullscreen">
+        <div class="preprocess-container">
+            <a href="/" class="home-link" title="Home">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+            </a>
+            <h1>Fractal Chat Demo</h1>
+            <div id="error" class="error-message"></div>
+            <div id="loadingIndicator" class="loading-indicator"></div>
+            <div id="downloadCheckmarks" class="download-checkmarks-container">
+                <div id="checkmark-wasm" class="download-checkmark">
+                    <span class="checkmark-icon">✓</span>
+                    <span>WASM Module</span>
+                </div>
+                <div id="checkmark-model" class="download-checkmark">
+                    <span class="checkmark-icon">✓</span>
+                    <span>Chat Model</span>
+                </div>
+            </div>
+            <div id="systemLogs" class="system-logs-container">
+                <h3>System Logs</h3>
+                <div id="systemLogsContent" class="system-logs-content"></div>
+            </div>
+            
+            <div class="preprocess-section">
+                <h2>About Fractal Chat</h2>
+                <p>
+                    This demo showcases an interactive chat interface that generates fractal images based on keywords in your messages.
+                </p>
+                <p>
+                    <strong>How it works:</strong> Type a message containing a fractal keyword, and a corresponding fractal image will be generated and displayed in the chat. If no keyword is detected, the chat model will respond with text.
+                </p>
+                <p>
+                    <strong>Available Fractal Keywords:</strong>
+                </p>
+                <ul>
+                    <li><strong>fractal</strong> - Random fractal from all types</li>
+                    <li><strong>mandelbrot</strong> - Classic Mandelbrot Set</li>
+                    <li><strong>julia</strong> - Julia Sets</li>
+                    <li><strong>buddhabrot</strong> or <strong>nebulabrot</strong> - Buddhabrot/Nebulabrot</li>
+                    <li><strong>orbit-trap</strong> - Orbit-Trap Fractals</li>
+                    <li><strong>gray-scott</strong>, <strong>reaction</strong>, or <strong>diffusion</strong> - Gray-Scott Reaction-Diffusion</li>
+                    <li><strong>l-system</strong>, <strong>tree</strong>, or <strong>plant</strong> - L-System Fractals</li>
+                    <li><strong>flames</strong> - Fractal Flames</li>
+                    <li><strong>strange</strong>, <strong>attractors</strong>, <strong>lorenz</strong>, <strong>clifford</strong>, or <strong>de jong</strong> - Strange Attractors</li>
+                </ul>
+            </div>
+            
+            <div class="preprocess-section">
+                <h2>Chat</h2>
+                <div id="chatContainer" class="chat-container">
+                    <div id="chatMessages" class="chat-messages"></div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chatInput" class="chat-input" placeholder="Type a message... (try 'mandelbrot' or 'julia')" />
+                        <button id="sendBtn" class="chat-send-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
+

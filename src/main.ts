@@ -4,6 +4,7 @@ import { init as initPreprocessSmolvlm500m } from './routes/preprocess-smolvlm-5
 import { init as initPreprocessSmolvlm256m } from './routes/preprocess-smolvlm-256m';
 import { init as initImageCaptioning } from './routes/image-captioning';
 import { init as initFunctionCalling } from './routes/function-calling';
+import { init as initFractalChat } from './routes/fractal-chat';
 
 type RouteHandler = () => Promise<void>;
 
@@ -15,6 +16,7 @@ routes.set('/preprocess-smolvlm-500m', initPreprocessSmolvlm500m);
 routes.set('/preprocess-smolvlm-256m', initPreprocessSmolvlm256m);
 routes.set('/image-captioning', initImageCaptioning);
 routes.set('/function-calling', initFunctionCalling);
+routes.set('/fractal-chat', initFractalChat);
 
 async function route(): Promise<void> {
   const path = window.location.pathname;
@@ -49,6 +51,8 @@ async function route(): Promise<void> {
       handler = routes.get('/image-captioning');
     } else if (path.includes('function-calling')) {
       handler = routes.get('/function-calling');
+    } else if (path.includes('fractal-chat')) {
+      handler = routes.get('/fractal-chat');
     }
   }
   

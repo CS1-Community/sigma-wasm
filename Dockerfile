@@ -35,17 +35,19 @@ COPY wasm-preprocess/Cargo.toml ./wasm-preprocess/
 COPY wasm-preprocess-256m/Cargo.toml ./wasm-preprocess-256m/
 COPY wasm-preprocess-image-captioning/Cargo.toml ./wasm-preprocess-image-captioning/
 COPY wasm-agent-tools/Cargo.toml ./wasm-agent-tools/
+COPY wasm-fractal-chat/Cargo.toml ./wasm-fractal-chat/
 
 # Add wasm32 target (must be done before building for wasm32-unknown-unknown)
 RUN rustup target add wasm32-unknown-unknown
 
 # Create dummy src files to cache dependencies
-RUN mkdir -p wasm-astar/src wasm-preprocess/src wasm-preprocess-256m/src wasm-preprocess-image-captioning/src wasm-agent-tools/src && \
+RUN mkdir -p wasm-astar/src wasm-preprocess/src wasm-preprocess-256m/src wasm-preprocess-image-captioning/src wasm-agent-tools/src wasm-fractal-chat/src && \
     echo "fn main() {}" > wasm-astar/src/lib.rs || true && \
     echo "fn main() {}" > wasm-preprocess/src/lib.rs || true && \
     echo "fn main() {}" > wasm-preprocess-256m/src/lib.rs || true && \
     echo "fn main() {}" > wasm-preprocess-image-captioning/src/lib.rs || true && \
-    echo "fn main() {}" > wasm-agent-tools/src/lib.rs || true
+    echo "fn main() {}" > wasm-agent-tools/src/lib.rs || true && \
+    echo "fn main() {}" > wasm-fractal-chat/src/lib.rs || true
 
 # Build dependencies only (for caching)
 RUN cargo build --target wasm32-unknown-unknown --release --workspace || true
@@ -56,6 +58,7 @@ COPY wasm-preprocess ./wasm-preprocess
 COPY wasm-preprocess-256m ./wasm-preprocess-256m
 COPY wasm-preprocess-image-captioning ./wasm-preprocess-image-captioning
 COPY wasm-agent-tools ./wasm-agent-tools
+COPY wasm-fractal-chat ./wasm-fractal-chat
 COPY scripts ./scripts
 
 # Make build scripts executable

@@ -37,6 +37,10 @@ function devServerRouting(): Plugin {
           else if (url === '/function-calling' || url.startsWith('/function-calling?')) {
             req.url = '/pages/function-calling.html' + (url.includes('?') ? url.substring(url.indexOf('?')) : '');
           }
+          // Rewrite /fractal-chat to /pages/fractal-chat.html
+          else if (url === '/fractal-chat' || url.startsWith('/fractal-chat?')) {
+            req.url = '/pages/fractal-chat.html' + (url.includes('?') ? url.substring(url.indexOf('?')) : '');
+          }
         }
         next();
       });

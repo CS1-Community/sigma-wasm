@@ -173,3 +173,16 @@ export interface WasmModuleAgentTools {
   get_stats(data: Uint8Array): string;
 }
 
+// Fractal chat module types
+export interface WasmModuleFractalChat {
+  memory: WebAssembly.Memory;
+  generate_mandelbrot(width: number, height: number): Uint8Array;
+  generate_julia(width: number, height: number): Uint8Array;
+  generate_buddhabrot(width: number, height: number): Uint8Array;
+  generate_orbit_trap(width: number, height: number): Uint8Array;
+  generate_gray_scott(width: number, height: number): Uint8Array;
+  generate_lsystem(width: number, height: number): Uint8Array;
+  generate_fractal_flame(width: number, height: number): Uint8Array;
+  generate_strange_attractor(width: number, height: number): Uint8Array;
+}
+

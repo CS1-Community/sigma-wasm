@@ -29,12 +29,15 @@ echo "Building wasm-preprocess-image-captioning..."
 echo "Building wasm-agent-tools..."
 ./scripts/build-wasm.sh wasm-agent-tools pkg/wasm_agent_tools
 
+echo "Building wasm-fractal-chat..."
+./scripts/build-wasm.sh wasm-fractal-chat pkg/wasm_fractal_chat
+
 echo "==========================================================="
 echo "VERIFYING ALL WASM MODULES"
 echo "==========================================================="
 
 # Verify all modules were built successfully
-MODULES=("wasm_astar" "wasm_preprocess" "wasm_preprocess_256m" "wasm_preprocess_image_captioning" "wasm_agent_tools")
+MODULES=("wasm_astar" "wasm_preprocess" "wasm_preprocess_256m" "wasm_preprocess_image_captioning" "wasm_agent_tools" "wasm_fractal_chat")
 FAILED_MODULES=()
 
 for module in "${MODULES[@]}"; do

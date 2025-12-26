@@ -1,5 +1,5 @@
 [workspace]
-members = ["wasm-astar", "wasm-preprocess", "wasm-preprocess-256m", "wasm-preprocess-image-captioning", "wasm-agent-tools"]
+members = ["wasm-astar", "wasm-preprocess", "wasm-preprocess-256m", "wasm-preprocess-image-captioning", "wasm-agent-tools", "wasm-fractal-chat"]
 resolver = "2"
 
 [workspace.package]
