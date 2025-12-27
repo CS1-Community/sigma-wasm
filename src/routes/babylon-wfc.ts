@@ -63,6 +63,9 @@ const getInitWasm = async (): Promise<unknown> => {
     if (!('generate_voronoi_regions' in moduleUnknown) || typeof moduleUnknown.generate_voronoi_regions !== 'function') {
       throw new Error(`Module missing 'generate_voronoi_regions' export. Available: ${moduleKeys.join(', ')}`);
     }
+    if (!('validate_road_connectivity' in moduleUnknown) || typeof moduleUnknown.validate_road_connectivity !== 'function') {
+      throw new Error(`Module missing 'validate_road_connectivity' export. Available: ${moduleKeys.join(', ')}`);
+    }
     
     // Store module as Record after validation
     // TypeScript can't narrow dynamic import types, so we use Record pattern
@@ -193,6 +196,9 @@ function validateBabylonWfcModule(exports: unknown): WasmModuleBabylonWfc | null
     if (typeof wasmModuleRecord.generate_voronoi_regions !== 'function') {
       missingExports.push('generate_voronoi_regions (function)');
     }
+    if (typeof wasmModuleRecord.validate_road_connectivity !== 'function') {
+      missingExports.push('validate_road_connectivity (function)');
+    }
   }
   
   if (missingExports.length > 0) {
@@ -215,6 +221,7 @@ function validateBabylonWfcModule(exports: unknown): WasmModuleBabylonWfc | null
   const clearPreConstraintsFunc = wasmModuleRecord.clear_pre_constraints;
   const getStatsFunc = wasmModuleRecord.get_stats;
   const generateVoronoiRegionsFunc = wasmModuleRecord.generate_voronoi_regions;
+  const validateRoadConnectivityFunc = wasmModuleRecord.validate_road_connectivity;
   
   if (
     typeof generateLayoutFunc !== 'function' ||
@@ -223,7 +230,8 @@ function validateBabylonWfcModule(exports: unknown): WasmModuleBabylonWfc | null
     typeof setPreConstraintFunc !== 'function' ||
     typeof clearPreConstraintsFunc !== 'function' ||
     typeof getStatsFunc !== 'function' ||
-    typeof generateVoronoiRegionsFunc !== 'function'
+    typeof generateVoronoiRegionsFunc !== 'function' ||
+    typeof validateRoadConnectivityFunc !== 'function'
   ) {
     return null;
   }
@@ -270,6 +278,11 @@ function validateBabylonWfcModule(exports: unknown): WasmModuleBabylonWfc | null
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = generateVoronoiRegionsFunc(max_layer, center_q, center_r, forest_seeds, water_seeds, grass_seeds);
       return typeof result === 'string' ? result : '[]';
+    },
+    validate_road_connectivity: (roads_json: string): boolean => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
+      const result = validateRoadConnectivityFunc(roads_json);
+      return typeof result === 'boolean' ? result : false;
     },
   };
 }
@@ -1392,82 +1405,149 @@ export function hexAStar(
   return null;
 }
 
-/**
- * Get neighboring hex coordinates that are roads
- */
-function getRoadNeighbors(
-  q: number,
-  r: number,
-  getTileAt: (q: number, r: number) => number
-): Array<HexCoord> {
-  const neighbors = HEX_UTILS.getNeighbors(q, r);
-  const roadNeighbors: Array<HexCoord> = [];
 
-  for (const neighbor of neighbors) {
-    const tileNum = getTileAt(neighbor.q, neighbor.r);
-    if (tileNum === 2) {
-      // TileType::Road = 2
-      roadNeighbors.push(neighbor);
+
+/**
+ * Get all hex coordinates that have valid terrain (grass or forest) from Voronoi regions
+ * Roads and buildings can only be placed on grass or forest tiles, not water
+ */
+function getValidTerrainHexes(
+  hexGrid: Array<HexCoord>,
+  voronoiConstraints: Array<{ q: number; r: number; tileType: TileType }>
+): Array<HexCoord> {
+  const validHexes: Array<HexCoord> = [];
+  const voronoiMap = new Map<string, TileType>();
+  
+  for (const constraint of voronoiConstraints) {
+    voronoiMap.set(`${constraint.q},${constraint.r}`, constraint.tileType);
+  }
+  
+  for (const hex of hexGrid) {
+    const tileType = voronoiMap.get(`${hex.q},${hex.r}`);
+    if (tileType && (tileType.type === 'grass' || tileType.type === 'forest')) {
+      validHexes.push(hex);
     }
   }
-
-  return roadNeighbors;
+  
+  return validHexes;
 }
 
 /**
- * Check if all road tiles form a single connected component
- * 
- * Uses BFS to find all reachable road tiles from a starting road.
- * Returns true if all roads are reachable (single connected component).
+ * Check if a hex coordinate is adjacent to at least one road
  */
-function areRoadsConnected(
-  roadTiles: Array<HexCoord>,
-  getTileAt: (q: number, r: number) => number
+function isAdjacentToRoad(
+  q: number,
+  r: number,
+  roadConstraints: Array<{ q: number; r: number; tileType: TileType }>
 ): boolean {
-  if (roadTiles.length === 0) {
-    return true;
+  const roadSet = new Set<string>();
+  for (const road of roadConstraints) {
+    roadSet.add(`${road.q},${road.r}`);
   }
-
-  if (roadTiles.length === 1) {
-    // Single road tile - check if it has at least one road neighbor
-    const road = roadTiles[0];
-    if (road) {
-      const neighbors = getRoadNeighbors(road.q, road.r, getTileAt);
-      return neighbors.length > 0;
+  
+  const neighbors = HEX_UTILS.getNeighbors(q, r);
+  for (const neighbor of neighbors) {
+    if (roadSet.has(`${neighbor.q},${neighbor.r}`)) {
+      return true;
     }
-    return false;
+  }
+  
+  return false;
+}
+
+/**
+ * Find the nearest road in the network to a given seed point
+ * Returns the hex coordinate of the nearest road
+ */
+function findNearestRoad(
+  seed: HexCoord,
+  roadNetwork: Array<HexCoord>
+): HexCoord | null {
+  if (roadNetwork.length === 0) {
+    return null;
   }
 
-  // BFS to find all reachable roads from first road tile
-  const visited = new Set<string>();
-  const queue: Array<HexCoord> = [];
-  const firstRoad = roadTiles[0];
+  let nearest: HexCoord | null = null;
+  let minDistance = Number.POSITIVE_INFINITY;
 
-  if (!firstRoad) {
-    return false;
-  }
-
-  queue.push(firstRoad);
-  visited.add(`${firstRoad.q},${firstRoad.r}`);
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
+  for (const road of roadNetwork) {
+    const distance = HEX_UTILS.distance(seed.q, seed.r, road.q, road.r);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = road;
     }
+  }
 
-    const neighbors = getRoadNeighbors(current.q, current.r, getTileAt);
+  return nearest;
+}
+
+/**
+ * Build a path between two road points using A* pathfinding
+ * Returns array of intermediate hexes (excluding start, including end)
+ * Returns null if no path found
+ */
+function buildPathBetweenRoads(
+  start: HexCoord,
+  end: HexCoord,
+  isValid: (q: number, r: number) => boolean
+): Array<HexCoord> | null {
+  const path = hexAStar(start, end, isValid);
+  if (!path || path.length === 0) {
+    return null;
+  }
+  // Return path excluding start (we already have it), including end
+  return path.slice(1);
+}
+
+/**
+ * Get all valid terrain hexes adjacent to existing roads
+ * Returns array of hex coordinates that are:
+ * - Adjacent to at least one road in the network
+ * - On valid terrain (grass/forest)
+ * - Not already occupied
+ */
+function getAdjacentValidTerrain(
+  roadNetwork: Array<HexCoord>,
+  validTerrainHexes: Array<HexCoord>,
+  occupiedHexes: Set<string>
+): Array<HexCoord> {
+  const roadSet = new Set<string>();
+  for (const road of roadNetwork) {
+    roadSet.add(`${road.q},${road.r}`);
+  }
+
+  const adjacentHexes: Array<HexCoord> = [];
+  const adjacentSet = new Set<string>();
+
+  // For each road, find its neighbors
+  for (const road of roadNetwork) {
+    const neighbors = HEX_UTILS.getNeighbors(road.q, road.r);
     for (const neighbor of neighbors) {
       const neighborKey = `${neighbor.q},${neighbor.r}`;
-      if (!visited.has(neighborKey)) {
-        visited.add(neighborKey);
-        queue.push(neighbor);
+      
+      // Skip if already a road or already added to adjacent list
+      if (roadSet.has(neighborKey) || adjacentSet.has(neighborKey)) {
+        continue;
+      }
+
+      // Skip if occupied
+      if (occupiedHexes.has(neighborKey)) {
+        continue;
+      }
+
+      // Check if this neighbor is in valid terrain
+      const isValidTerrain = validTerrainHexes.some(
+        (hex) => hex.q === neighbor.q && hex.r === neighbor.r
+      );
+
+      if (isValidTerrain) {
+        adjacentHexes.push(neighbor);
+        adjacentSet.add(neighborKey);
       }
     }
   }
 
-  // Check if all road tiles were visited
-  return visited.size === roadTiles.length;
+  return adjacentHexes;
 }
 
 /**
@@ -1479,6 +1559,8 @@ function areRoadsConnected(
  * Now includes:
  * - Voronoi region priors for forest, water, and grass
  * - Road connectivity validation
+ * - Road and building placement restricted to grass/forest (not water)
+ * - Buildings must be adjacent to at least one road
  */
 function constraintsToPreConstraints(
   constraints: LayoutConstraints
@@ -1572,29 +1654,208 @@ function constraintsToPreConstraints(
   }
 
   // Step 2: Create a set of occupied hexes from Voronoi regions
+  // Only water tiles are considered "occupied" - grass and forest can be overridden by roads/buildings
   const occupiedHexes = new Set<string>();
   for (const constraint of voronoiConstraints) {
-    occupiedHexes.add(`${constraint.q},${constraint.r}`);
-  }
-
-  // Step 3: Generate buildings on remaining tiles
-  const buildingConstraints: Array<{ q: number; r: number; tileType: TileType }> = [];
-  const availableHexes: Array<HexCoord> = [];
-
-  for (const hex of hexGrid) {
-    const hexKey = `${hex.q},${hex.r}`;
-    if (!occupiedHexes.has(hexKey)) {
-      availableHexes.push(hex);
+    if (constraint.tileType.type === 'water') {
+      occupiedHexes.add(`${constraint.q},${constraint.r}`);
     }
   }
 
-  // Shuffle available hexes for building placement
-  for (let i = availableHexes.length - 1; i > 0; i--) {
+  if (addLogEntry !== null) {
+    const waterCount = voronoiConstraints.filter((pc) => pc.tileType.type === 'water').length;
+    addLogEntry(`Occupied hexes (water only): ${occupiedHexes.size} (${waterCount} water tiles)`, 'info');
+  }
+
+  // Step 3: Generate roads on valid terrain (grass/forest only) using growing tree algorithm
+  // This ensures all roads form a single connected component
+  const roadConstraints: Array<{ q: number; r: number; tileType: TileType }> = [];
+
+  // Get valid terrain hexes (grass/forest only, not water)
+  const validTerrainHexes = getValidTerrainHexes(hexGrid, voronoiConstraints);
+
+  if (addLogEntry !== null) {
+    addLogEntry(`Valid terrain for roads/buildings: ${validTerrainHexes.length} hexes (grass/forest only)`, 'info');
+  }
+
+  // Calculate target road count (10% of valid terrain)
+  const targetRoadCount = Math.floor(validTerrainHexes.length * 0.1);
+
+  // Create set of valid terrain for A* pathfinding
+  const validTerrainSet = new Set<string>();
+  for (const hex of validTerrainHexes) {
+    validTerrainSet.add(`${hex.q},${hex.r}`);
+  }
+
+  // Helper function to check if a hex is valid for road placement
+  const isValidForRoad = (q: number, r: number): boolean => {
+    const hexKey = `${q},${r}`;
+    return validTerrainSet.has(hexKey) && !occupiedHexes.has(hexKey);
+  };
+
+  // Step 3a: Select seed points (20-30% of target road count, distributed across terrain)
+  const seedCount = Math.max(1, Math.floor(targetRoadCount * 0.25));
+  const availableForSeeds: Array<HexCoord> = [];
+  for (const hex of validTerrainHexes) {
+    const hexKey = `${hex.q},${hex.r}`;
+    if (!occupiedHexes.has(hexKey)) {
+      availableForSeeds.push(hex);
+    }
+  }
+
+  // Shuffle and select seed points
+  for (let i = availableForSeeds.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    const temp = availableHexes[i];
-    if (temp && availableHexes[j]) {
-      availableHexes[i] = availableHexes[j];
-      availableHexes[j] = temp;
+    const temp = availableForSeeds[i];
+    if (temp && availableForSeeds[j]) {
+      availableForSeeds[i] = availableForSeeds[j];
+      availableForSeeds[j] = temp;
+    }
+  }
+
+  const seedPoints = availableForSeeds.slice(0, Math.min(seedCount, availableForSeeds.length));
+
+  if (addLogEntry !== null) {
+    addLogEntry(`Selected ${seedPoints.length} seed points for road network`, 'info');
+  }
+
+  // Step 3b: Build connected network using growing tree algorithm
+  // Start with first seed point
+  const roadNetwork: Array<HexCoord> = [];
+  if (seedPoints.length > 0) {
+    const firstSeed = seedPoints[0];
+    if (firstSeed) {
+      roadNetwork.push(firstSeed);
+      occupiedHexes.add(`${firstSeed.q},${firstSeed.r}`);
+    }
+  }
+
+  // Connect remaining seed points to the network
+  for (let i = 1; i < seedPoints.length; i++) {
+    const seed = seedPoints[i];
+    if (!seed) {
+      continue;
+    }
+
+    // Find nearest road in current network
+    const nearestRoad = findNearestRoad(seed, roadNetwork);
+    if (!nearestRoad) {
+      // Shouldn't happen, but add seed directly if no network exists
+      roadNetwork.push(seed);
+      occupiedHexes.add(`${seed.q},${seed.r}`);
+      continue;
+    }
+
+    // Build path from nearest road to seed
+    const path = buildPathBetweenRoads(nearestRoad, seed, isValidForRoad);
+    if (path && path.length > 0) {
+      // Add all hexes along the path to the network
+      for (const pathHex of path) {
+        const pathKey = `${pathHex.q},${pathHex.r}`;
+        if (!occupiedHexes.has(pathKey)) {
+          roadNetwork.push(pathHex);
+          occupiedHexes.add(pathKey);
+        }
+      }
+    } else {
+      // If no path found, try to add seed directly (should be rare)
+      if (isValidForRoad(seed.q, seed.r)) {
+        roadNetwork.push(seed);
+        occupiedHexes.add(`${seed.q},${seed.r}`);
+      }
+    }
+  }
+
+  if (addLogEntry !== null) {
+    addLogEntry(`Built initial connected network: ${roadNetwork.length} roads`, 'info');
+  }
+
+  // Step 3c: Expand network to reach target density
+  // Add roads adjacent to existing network until we reach target count
+  while (roadNetwork.length < targetRoadCount) {
+    const adjacentHexes = getAdjacentValidTerrain(roadNetwork, validTerrainHexes, occupiedHexes);
+    
+    if (adjacentHexes.length === 0) {
+      // No more valid adjacent hexes, stop expanding
+      if (addLogEntry !== null) {
+        addLogEntry(`No more adjacent valid terrain, stopping road expansion at ${roadNetwork.length} roads`, 'info');
+      }
+      break;
+    }
+
+    // Shuffle adjacent hexes for random selection
+    for (let i = adjacentHexes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = adjacentHexes[i];
+      if (temp && adjacentHexes[j]) {
+        adjacentHexes[i] = adjacentHexes[j];
+        adjacentHexes[j] = temp;
+      }
+    }
+
+    // Add first available adjacent hex
+    const newRoad = adjacentHexes[0];
+    if (newRoad) {
+      roadNetwork.push(newRoad);
+      occupiedHexes.add(`${newRoad.q},${newRoad.r}`);
+    } else {
+      break;
+    }
+  }
+
+  // Convert road network to constraints
+  for (const road of roadNetwork) {
+    roadConstraints.push({ q: road.q, r: road.r, tileType: { type: 'road' } });
+  }
+
+  // Validate road connectivity (should always pass with growing tree algorithm)
+  const roadsJson = JSON.stringify(roadConstraints.map((rc) => ({ q: rc.q, r: rc.r })));
+  if (addLogEntry !== null) {
+    addLogEntry(`Validating ${roadConstraints.length} roads for connectivity...`, 'info');
+  }
+  let roadsConnected = false;
+  if (WASM_BABYLON_WFC.wasmModule) {
+    roadsConnected = WASM_BABYLON_WFC.wasmModule.validate_road_connectivity(roadsJson);
+    if (addLogEntry !== null) {
+      if (roadsConnected) {
+        addLogEntry(`Road connectivity validation PASSED: All ${roadConstraints.length} roads are connected`, 'success');
+      } else {
+        addLogEntry(`Road connectivity validation FAILED: This should not happen with growing tree algorithm!`, 'error');
+      }
+    }
+  } else {
+    if (addLogEntry !== null) {
+      addLogEntry('WASM module not available for road connectivity validation', 'error');
+    }
+  }
+
+  if (addLogEntry !== null) {
+    addLogEntry(`Placed ${roadConstraints.length} roads (target: ${targetRoadCount}) using growing tree algorithm`, 'info');
+  }
+
+  // Step 4: Generate buildings on valid terrain (grass/forest only) adjacent to roads
+  const buildingConstraints: Array<{ q: number; r: number; tileType: TileType }> = [];
+  const availableBuildingHexes: Array<HexCoord> = [];
+
+  // Find available hexes for buildings (only on valid terrain, not already occupied, adjacent to roads)
+  for (const hex of validTerrainHexes) {
+    const hexKey = `${hex.q},${hex.r}`;
+    if (!occupiedHexes.has(hexKey) && isAdjacentToRoad(hex.q, hex.r, roadConstraints)) {
+      availableBuildingHexes.push(hex);
+    }
+  }
+
+  if (addLogEntry !== null) {
+    addLogEntry(`Available building locations (adjacent to roads): ${availableBuildingHexes.length} hexes`, 'info');
+  }
+
+  // Shuffle available building hexes for random placement
+  for (let i = availableBuildingHexes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = availableBuildingHexes[i];
+    if (temp && availableBuildingHexes[j]) {
+      availableBuildingHexes[i] = availableBuildingHexes[j];
+      availableBuildingHexes[j] = temp;
     }
   }
 
@@ -1607,88 +1868,22 @@ function constraintsToPreConstraints(
     buildingRatio = 0.15;
   }
 
-  const buildingCount = Math.floor(availableHexes.length * buildingRatio);
-  for (let i = 0; i < buildingCount && i < availableHexes.length; i++) {
-    const hex = availableHexes[i];
+  const buildingCount = Math.floor(availableBuildingHexes.length * buildingRatio);
+  let placedBuildings = 0;
+  for (let i = 0; i < buildingCount && i < availableBuildingHexes.length; i++) {
+    const hex = availableBuildingHexes[i];
     if (hex) {
-      buildingConstraints.push({ q: hex.q, r: hex.r, tileType: { type: 'building' } });
-      occupiedHexes.add(`${hex.q},${hex.r}`);
-    }
-  }
-
-  // Step 4: Generate roads with connectivity validation (with retry)
-  const maxRetries = 10;
-  let roadConstraints: Array<{ q: number; r: number; tileType: TileType }> = [];
-  let roadsConnected = false;
-
-  for (let attempt = 0; attempt < maxRetries && !roadsConnected; attempt++) {
-    roadConstraints = [];
-    const roadHexes: Array<HexCoord> = [];
-
-    // Find remaining available hexes for roads
-    for (const hex of hexGrid) {
-      const hexKey = `${hex.q},${hex.r}`;
-      if (!occupiedHexes.has(hexKey)) {
-        roadHexes.push(hex);
-      }
-    }
-
-    // Shuffle for random road placement
-    for (let i = roadHexes.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const temp = roadHexes[i];
-      if (temp && roadHexes[j]) {
-        roadHexes[i] = roadHexes[j];
-        roadHexes[j] = temp;
-      }
-    }
-
-    // Place roads (10% of remaining tiles)
-    const roadCount = Math.floor(roadHexes.length * 0.1);
-    for (let i = 0; i < roadCount && i < roadHexes.length; i++) {
-      const hex = roadHexes[i];
-      if (hex) {
-        roadConstraints.push({ q: hex.q, r: hex.r, tileType: { type: 'road' } });
-      }
-    }
-
-    // Validate road connectivity
-    // Create a temporary map for tile lookup
-    const tileMap = new Map<string, TileType>();
-    for (const constraint of voronoiConstraints) {
-      tileMap.set(`${constraint.q},${constraint.r}`, constraint.tileType);
-    }
-    for (const constraint of buildingConstraints) {
-      tileMap.set(`${constraint.q},${constraint.r}`, constraint.tileType);
-    }
-    for (const constraint of roadConstraints) {
-      tileMap.set(`${constraint.q},${constraint.r}`, constraint.tileType);
-    }
-
-    const getTileAt = (q: number, r: number): number => {
-      const tile = tileMap.get(`${q},${r}`);
-      if (!tile) {
-        return -1;
-      }
-      return tileTypeToNumber(tile);
-    };
-
-    const roadTiles: Array<HexCoord> = roadConstraints.map((rc) => ({ q: rc.q, r: rc.r }));
-    roadsConnected = areRoadsConnected(roadTiles, getTileAt);
-
-    if (!roadsConnected && attempt < maxRetries - 1) {
-      if (addLogEntry !== null) {
-        addLogEntry(`Road connectivity validation failed, retrying (attempt ${attempt + 1}/${maxRetries})`, 'warning');
+      // Double-check adjacency (in case roads changed during retries)
+      if (isAdjacentToRoad(hex.q, hex.r, roadConstraints)) {
+        buildingConstraints.push({ q: hex.q, r: hex.r, tileType: { type: 'building' } });
+        occupiedHexes.add(`${hex.q},${hex.r}`);
+        placedBuildings += 1;
       }
     }
   }
 
-  if (!roadsConnected) {
-    if (addLogEntry !== null) {
-      addLogEntry('Road connectivity validation failed after max retries, using roads anyway', 'warning');
-    }
-  } else if (addLogEntry !== null) {
-    addLogEntry('Road connectivity validation passed', 'success');
+  if (addLogEntry !== null) {
+    addLogEntry(`Placed ${placedBuildings} buildings (${buildingCount} attempted, ${availableBuildingHexes.length} available)`, 'info');
   }
 
   // Step 5: Fill remaining tiles with grass

@@ -253,6 +253,7 @@ export interface WasmModuleBabylonWfc {
     water_seeds: number,
     grass_seeds: number
   ): string;
+  validate_road_connectivity(roads_json: string): boolean;
 }
 
 /**

@@ -1,6 +1,7 @@
 use wasm_bindgen::prelude::*;
 use std::sync::{LazyLock, Mutex};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, BinaryHeap};
+use std::cmp::Ordering;
 
 /// Tile type enumeration for 5 simple tile types
 /// 
@@ -85,10 +86,251 @@ struct VoronoiSeed {
 
 /// Calculate hex distance between two hex coordinates (cube distance)
 /// Uses axial coordinates converted to cube coordinates
+/// Formula: (|dq| + |dr| + |ds|) / 2 where s = -q - r
+/// This matches the Python example: (abs(q1-q2) + abs(r1-r2) + abs(s1-s2)) // 2
 fn hex_distance(q1: i32, r1: i32, q2: i32, r2: i32) -> i32 {
     let s1 = -q1 - r1;
     let s2 = -q2 - r2;
-    (q1 - q2).abs().max((r1 - r2).abs()).max((s1 - s2).abs())
+    ((q1 - q2).abs() + (r1 - r2).abs() + (s1 - s2).abs()) / 2
+}
+
+/// A* node for pathfinding
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct AStarNode {
+    q: i32,
+    r: i32,
+    g: i32,
+    h: i32,
+    f: i32,
+}
+
+impl AStarNode {
+    fn new(q: i32, r: i32, g: i32, h: i32) -> Self {
+        AStarNode {
+            q,
+            r,
+            g,
+            h,
+            f: g + h,
+        }
+    }
+}
+
+impl Ord for AStarNode {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Reverse order for min-heap (lowest f score first)
+        other.f.cmp(&self.f)
+            .then_with(|| other.h.cmp(&self.h))
+    }
+}
+
+impl PartialOrd for AStarNode {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Get all 6 hex neighbors of a coordinate (axial)
+fn get_hex_neighbors(q: i32, r: i32) -> Vec<(i32, i32)> {
+    vec![
+        (q + 1, r),
+        (q - 1, r),
+        (q, r + 1),
+        (q, r - 1),
+        (q + 1, r - 1),
+        (q - 1, r + 1),
+    ]
+}
+
+/// Hex A* pathfinding between two road tiles
+/// Returns path length, or -1 if unreachable
+/// Only considers road tiles as valid path nodes
+/// 
+/// Algorithm matches Python example:
+/// - Uses f_cost = g_cost + h_cost for priority
+/// - g_cost is path cost from start (uniform cost of 1 per step)
+/// - h_cost is hex distance heuristic
+/// - Explores nodes with lowest f_cost first
+fn hex_astar_path(
+    start_q: i32,
+    start_r: i32,
+    goal_q: i32,
+    goal_r: i32,
+    roads: &HashSet<(i32, i32)>,
+) -> i32 {
+    // Check if start and goal are roads
+    if !roads.contains(&(start_q, start_r)) || !roads.contains(&(goal_q, goal_r)) {
+        return -1;
+    }
+
+    // If start equals goal, path length is 0
+    if start_q == goal_q && start_r == goal_r {
+        return 0;
+    }
+
+    // Calculate heuristic (hex distance) - now using correct formula
+    let h_start = hex_distance(start_q, start_r, goal_q, goal_r);
+
+    let mut open_set = BinaryHeap::new();
+    let mut closed_set = HashSet::new();
+    let mut g_scores: HashMap<(i32, i32), i32> = HashMap::new();
+
+    open_set.push(AStarNode::new(start_q, start_r, 0, h_start));
+    g_scores.insert((start_q, start_r), 0);
+
+    while let Some(current) = open_set.pop() {
+        let current_key = (current.q, current.r);
+
+        // Skip if already processed (duplicate in open_set)
+        if closed_set.contains(&current_key) {
+            continue;
+        }
+
+        closed_set.insert(current_key);
+
+        // Check if we reached the goal
+        if current.q == goal_q && current.r == goal_r {
+            return current.g;
+        }
+
+        // Explore neighbors - get all 6 hex neighbors
+        let neighbors = get_hex_neighbors(current.q, current.r);
+        for (nq, nr) in neighbors {
+            let neighbor_key = (nq, nr);
+
+            // Skip if not a road (obstacle check)
+            if !roads.contains(&neighbor_key) {
+                continue;
+            }
+
+            // Skip if already closed
+            if closed_set.contains(&neighbor_key) {
+                continue;
+            }
+
+            // Calculate tentative g score (uniform cost of 1 per step)
+            let tentative_g = current.g + 1;
+
+            // Check if this is a better path (matches Python: if neighbor not in g_cost or tentative_g < g_cost[neighbor])
+            let current_g = g_scores.get(&neighbor_key).copied().unwrap_or(i32::MAX);
+            if tentative_g < current_g {
+                // This path to neighbor is better - record it
+                g_scores.insert(neighbor_key, tentative_g);
+                let h = hex_distance(nq, nr, goal_q, goal_r);
+                open_set.push(AStarNode::new(nq, nr, tentative_g, h));
+            }
+        }
+    }
+
+    // No path found
+    -1
+}
+
+/// Validate that all road tiles are reachable from each other using A* pathfinding
+/// 
+/// Uses transitive property: if all roads are reachable from one source road,
+/// then all pairs have paths (by transitivity: A->B and B->C implies A->C).
+/// 
+/// @param roads_json - JSON string with array of road coordinates: [{"q":0,"r":0},{"q":1,"r":0},...]
+/// @returns true if all roads are reachable from source, false otherwise
+#[wasm_bindgen]
+pub fn validate_road_connectivity(roads_json: String) -> bool {
+    // Parse roads from JSON
+    // Simple JSON parsing without serde to keep WASM size small
+    let mut roads: Vec<(i32, i32)> = Vec::new();
+    
+    // Remove whitespace and brackets
+    let trimmed = roads_json.trim();
+    if trimmed.is_empty() || trimmed == "[]" {
+        return true; // Empty roads is trivially connected
+    }
+
+    // Simple JSON parsing: find all {"q":X,"r":Y} patterns
+    // This is a simplified parser that handles the expected format: [{"q":0,"r":0},...]
+    let mut i = 0;
+    let chars: Vec<char> = trimmed.chars().collect();
+    while i < chars.len() {
+        // Look for opening brace
+        if chars[i] == '{' {
+            let mut q_value: Option<i32> = None;
+            let mut r_value: Option<i32> = None;
+            
+            i += 1;
+            while i < chars.len() && chars[i] != '}' {
+                // Look for "q" or "r" followed by colon and number
+                if i + 3 < chars.len() && chars[i] == '"' && chars[i + 1] == 'q' && chars[i + 2] == '"' {
+                    i += 3;
+                    // Skip colon and whitespace
+                    while i < chars.len() && (chars[i] == ':' || chars[i] == ' ' || chars[i] == '\t') {
+                        i += 1;
+                    }
+                    // Parse number
+                    if i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '-') {
+                        let start = i;
+                        i += 1;
+                        while i < chars.len() && chars[i].is_ascii_digit() {
+                            i += 1;
+                        }
+                        let num_str: String = chars[start..i].iter().collect();
+                        if let Ok(num) = num_str.parse::<i32>() {
+                            q_value = Some(num);
+                        }
+                    }
+                } else if i + 3 < chars.len() && chars[i] == '"' && chars[i + 1] == 'r' && chars[i + 2] == '"' {
+                    i += 3;
+                    // Skip colon and whitespace
+                    while i < chars.len() && (chars[i] == ':' || chars[i] == ' ' || chars[i] == '\t') {
+                        i += 1;
+                    }
+                    // Parse number
+                    if i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '-') {
+                        let start = i;
+                        i += 1;
+                        while i < chars.len() && chars[i].is_ascii_digit() {
+                            i += 1;
+                        }
+                        let num_str: String = chars[start..i].iter().collect();
+                        if let Ok(num) = num_str.parse::<i32>() {
+                            r_value = Some(num);
+                        }
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+            
+            if let (Some(q), Some(r)) = (q_value, r_value) {
+                roads.push((q, r));
+            }
+        }
+        i += 1;
+    }
+
+    if roads.is_empty() {
+        return true;
+    }
+
+    if roads.len() == 1 {
+        // Single road - check if it has at least one road neighbor
+        // For single road, we consider it valid (can't check neighbors without more context)
+        return true;
+    }
+
+    // Convert to HashSet for O(1) lookups
+    let roads_set: HashSet<(i32, i32)> = roads.iter().cloned().collect();
+
+    // Use first road as source
+    let source = roads[0];
+
+    // Check if all other roads are reachable from source using A*
+    for road in roads.iter().skip(1) {
+        let path_length = hex_astar_path(source.0, source.1, road.0, road.1, &roads_set);
+        if path_length == -1 {
+            return false; // Unreachable road found
+        }
+    }
+
+    true // All roads reachable from source
 }
 
 /// Cube coordinate structure
