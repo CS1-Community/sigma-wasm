@@ -137,10 +137,28 @@ RUN npx vite build
 # Manually copy public directory to dist/ as fallback
 # Vite's default public directory copying may not work with rollupOptions.input
 # This ensures icons and other public assets are always present
+# Explicitly copy each known directory/file (most reliable in busybox/Alpine)
 RUN if [ -d "public" ] && [ -d "dist" ]; then \
       echo "Copying public/ directory to dist/ as fallback..." && \
-      cp -r public/* dist/ && \
-      echo "✓ Public assets copied to dist/"; \
+      [ -d "public/icons" ] && cp -r public/icons dist/ || true && \
+      [ -f "public/manifest.json" ] && cp public/manifest.json dist/ || true && \
+      [ -f "public/sw.js" ] && cp public/sw.js dist/ || true && \
+      [ -f "public/favicon.ico" ] && cp public/favicon.ico dist/ || true && \
+      [ -d "public/onnxruntime-wasm" ] && cp -r public/onnxruntime-wasm dist/ || true && \
+      [ -f "public/rustacean.webp" ] && cp public/rustacean.webp dist/ || true && \
+      echo "✓ Public assets copied to dist/" && \
+      echo "Verifying icons directory..." && \
+      if [ -d "dist/icons" ]; then \
+        icon_count=$(find dist/icons -type f -name "*.png" 2>/dev/null | wc -l) && \
+        echo "Found $icon_count icon files in dist/icons/"; \
+      else \
+        echo "ERROR: dist/icons/ still not found after explicit copy!" >&2; \
+        echo "Listing dist/ contents:" && \
+        ls -la dist/ || true; \
+        echo "Listing public/ contents:" && \
+        ls -la public/ || true; \
+        exit 1; \
+      fi; \
     else \
       echo "Warning: public/ or dist/ directory not found"; \
     fi
