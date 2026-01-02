@@ -161,6 +161,66 @@ catch (error) {
 
 **What We Learned**: Comprehensive error logging with stack traces, import paths, and error causes is essential for production debugging. Generic logs are useless.
 
+---
+
+### WASM Function Retrieval Pattern
+
+**What We Learned**: All WASM functions must be retrieved from `wasmModuleRecord` (the module object) first, not from `exports` (the init result). This ensures the `wasm-bindgen` generated JavaScript wrappers are used, which handle proper type conversion (e.g., `(ptr, len)` tuples to strings).
+
+**The Mistake**: Mixed retrieval pattern - some functions from `exports`, some from `wasmModuleRecord`:
+```typescript
+// WRONG: Inconsistent retrieval pattern
+const generateLayoutValue = getProperty(exports, 'generate_layout') || 
+  (wasmModuleRecord ? getProperty(wasmModuleRecord, 'generate_layout') : undefined);
+const getWasmVersionValue = wasmModuleRecord ? 
+  getProperty(wasmModuleRecord, 'get_wasm_version') : 
+  getProperty(exports, 'get_wasm_version');
+```
+
+**The Impact**:
+- Functions returned raw WASM values (e.g., `(ptr, len)` tuples) instead of JavaScript strings
+- Type mismatches: `get_wasm_version()` returned `unknown (got: 1114120,19)` instead of version string
+- Inconsistent behavior across different functions
+- Difficult to debug - functions appeared to work but returned wrong types
+
+**The Root Cause**:
+- `wasm-bindgen` generates JavaScript wrapper functions that handle type conversion
+- Raw WASM exports return low-level types (pointers, lengths, etc.)
+- Retrieving from `exports` gets raw exports, not wrapped functions
+- Retrieving from `wasmModuleRecord` gets the fully wrapped module object
+
+**The Solution**:
+```typescript
+// CORRECT: Always prioritize wasmModuleRecord for all functions
+const generateLayoutValue = wasmModuleRecord ? 
+  getProperty(wasmModuleRecord, 'generate_layout') : 
+  getProperty(exports, 'generate_layout');
+const getWasmVersionValue = wasmModuleRecord ? 
+  getProperty(wasmModuleRecord, 'get_wasm_version') : 
+  getProperty(exports, 'get_wasm_version');
+// ... apply same pattern to ALL functions
+```
+
+**Key Lesson**: 
+- Always retrieve WASM functions from `wasmModuleRecord` first (the wrapped module object)
+- Fall back to `exports` only if `wasmModuleRecord` is not available
+- This ensures `wasm-bindgen` generated wrappers are used for proper type conversion
+- Apply this pattern consistently to ALL functions, not just some
+
+**Prevention**:
+- Use consistent retrieval pattern for all WASM functions
+- Always prioritize `wasmModuleRecord` over `exports`
+- Verify function return types match expected JavaScript types
+- Add `get_wasm_version()` function to all WASM modules for cache debugging
+
+**WASM Version Verification**:
+- Add `get_wasm_version()` function to WASM modules to help debug caching issues
+- Call and log version during initialization
+- Verify version matches expected value to detect stale cached modules
+- Use hardcoded version strings (e.g., `"1.0.0-20250102-0912"`) for easy identification
+
+---
+
 **The Mistake**: Error logging was minimal:
 - Only logged generic error messages
 - No stack traces
@@ -463,11 +523,88 @@ const result = await imageToTextPipeline(dataUrl);
 - Verify camera positioning matches actual tile positions
 - Use pre-constraints for guided generation
 
+#### Voronoi Region Generation Issues
+
+**What We Learned**: Rust ownership rules and pattern matching are critical for WASM functions. Consuming data structures prevents their later use, and pattern matching provides cleaner error handling.
+
+**The Mistakes**:
+
+1. **Ownership Issue**: Consumed `hex_grid` in a loop, preventing its later use
+2. **No Pattern Matching**: Used `if` statements instead of `match` for error scenarios
+3. **Empty Seed Generation**: Seeds could be empty if random generation failed
+
+**The Impact**:
+- Voronoi regions returned empty array `[]` despite valid input
+- Function appeared to work but returned no results
+- Difficult to debug due to lack of clear error handling
+
+**The Solutions**:
+
+1. **Fix Ownership**:
+   ```rust
+   // WRONG: Consumes hex_grid, can't use it later
+   for hex in hex_grid {
+       // ...
+   }
+   
+   // CORRECT: Borrow hex_grid, can use it later
+   for hex in &hex_grid {
+       // ...
+   }
+   ```
+
+2. **Use Pattern Matching**:
+   ```rust
+   // WRONG: Verbose if statements
+   if hex_grid.is_empty() {
+       return r#"[{"q":0,"r":0,"tileType":0}]"#.to_string();
+   }
+   if seeds.is_empty() {
+       return r#"[{"q":777,"r":777,"tileType":0}]"#.to_string();
+   }
+   
+   // CORRECT: Clean pattern matching
+   let hex_vec: Vec<(i32, i32)> = match hex_grid.as_slice() {
+       [] => {
+           return r#"[{"q":0,"r":0,"tileType":0}]"#.to_string();
+       },
+       _ => hex_grid.iter().map(|h| (h.q, h.r)).collect(),
+   };
+   
+   let seeds_ref = match seeds.as_slice() {
+       [] => {
+           return r#"[{"q":777,"r":777,"tileType":0}]"#.to_string();
+       },
+       s => s,
+   };
+   ```
+
+3. **Defensive Seed Generation**:
+   ```rust
+   // Always ensure at least one seed is generated
+   if seeds.is_empty() && hex_count > 0 {
+       // Force at least one grass seed
+       seeds.push(Seed { q: 0, r: 0, tile_type: 0 });
+   }
+   ```
+
+**Key Learnings**:
+- Always borrow (`&`) data structures when iterating if you need them later
+- Use pattern matching (`match`) for cleaner error handling in Rust
+- Add defensive checks to ensure functions never return empty results when input is valid
+- Pattern matching makes error scenarios explicit and easier to understand
+
+**Best Practices**:
+- Use `&collection` when iterating if collection is needed later
+- Prefer `match` over `if` for error scenarios in Rust
+- Add defensive fallbacks for edge cases
+- Use pattern matching to make error handling explicit
+
 ---
 
 ### BabylonJS Learnings
 
-**What We Learned**: 3D rendering requires careful attention to camera setup, mesh instancing, and coordinate systems.
+**What We Learned**: 3D rendering requires careful attention to camera setup, mesh instancing, coordinate systems, and thin instance configuration.
 
 **The Mistakes**:
 
@@ -556,6 +693,86 @@ const result = await imageToTextPipeline(dataUrl);
 - Test camera positioning visually
 - Use appropriate camera angles for the content
 - Leverage Babylon 2D UI for in-canvas controls
+
+#### Thin Instance Colors: Per-Instance Attributes
+
+**What We Learned**: Thin instances with per-instance colors require specific attribute names, material types, and visibility settings. StandardMaterial doesn't automatically support per-instance colors from thin instance buffers.
+
+**The Mistakes**:
+
+1. **Wrong Attribute Name**: Used `"color"` instead of `"instanceColor"` for thin instance color buffer
+2. **Wrong Material Type**: Used `StandardMaterial` which doesn't automatically support per-instance colors from thin instance buffers
+3. **Base Mesh Visibility**: Base mesh was set to `isVisible = false`, preventing thin instances from rendering
+
+**The Impact**:
+- Only one hex tile visible instead of all 2791 tiles
+- No per-instance colors applied (all tiles same color)
+- Thin instances not rendering at all
+
+**The Solutions**:
+
+1. **Correct Attribute Name**:
+   ```typescript
+   // WRONG: "color" doesn't work for thin instances
+   baseMesh.thinInstanceSetBuffer("color", bufferColors, 4);
+   
+   // CORRECT: "instanceColor" is the standard attribute name
+   baseMesh.thinInstanceSetBuffer("instanceColor", bufferColors, 4);
+   ```
+
+2. **Use PBRMaterial**:
+   ```typescript
+   // WRONG: StandardMaterial doesn't support per-instance colors automatically
+   const material = new StandardMaterial(`material_${tileType.type}`, scene);
+   material.diffuseColor = getTileColor(tileType);
+   
+   // CORRECT: PBRMaterial has better support for per-instance attributes
+   const material = new PBRMaterial(`material_${tileType.type}`, scene);
+   material.albedoColor = getTileColor(tileType);
+   material.metallicF0Factor = 0.0;
+   material.roughness = 0.8;
+   ```
+
+3. **Base Mesh Visibility**:
+   ```typescript
+   // WRONG: Base mesh hidden prevents thin instances from rendering
+   baseMesh.isVisible = false;
+   
+   // CORRECT: Base mesh must be visible for thin instances to render
+   baseMesh.isVisible = true;
+   ```
+
+4. **Complete Setup Pattern**:
+   ```typescript
+   // Set transformation matrices
+   baseMesh.thinInstanceSetBuffer("matrix", matrices, 16);
+   
+   // Set per-instance colors (use "instanceColor" attribute name)
+   baseMesh.thinInstanceSetBuffer("instanceColor", bufferColors, 4);
+   
+   // Set instance count (required for rendering)
+   baseMesh.thinInstanceCount = numInstances;
+   
+   // Apply PBRMaterial (supports per-instance colors)
+   baseMesh.material = baseMaterial;
+   
+   // Make base mesh visible
+   baseMesh.isVisible = true;
+   ```
+
+**Key Learnings**:
+- Thin instance colors use `"instanceColor"` attribute name (not `"color"`)
+- PBRMaterial has better support for per-instance attributes than StandardMaterial
+- Base mesh must be visible for thin instances to render
+- Always set `thinInstanceCount` after setting buffers
+- Color buffer format: `Float32Array` with 4 components per instance (RGBA)
+
+**Best Practices**:
+- Use `"instanceColor"` for thin instance color buffers
+- Prefer PBRMaterial over StandardMaterial for per-instance colors
+- Always make base mesh visible when using thin instances
+- Set instance count after setting all buffers
+- Use proper color format (RGBA, 4 components per instance)
 
 ---
 
@@ -785,6 +1002,8 @@ Before deploying to production, verify:
 - [ ] All WASM modules have proper validation functions
 - [ ] WASM module paths are correct for both dev and production
 - [ ] Vite configuration handles WASM correctly (`assetsInlineLimit: 0`)
+- [ ] All WASM functions retrieved from `wasmModuleRecord` first (not `exports`)
+- [ ] WASM version function implemented and verified for cache debugging
 
 ### Testing
 - [ ] Test all endpoints in production-like environment

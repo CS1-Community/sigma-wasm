@@ -17,7 +17,7 @@
 import type { WasmBabylonWfc as WasmBabylonChunks, WasmModuleBabylonChunks, TileType, LayoutConstraints, BuildingRules } from '../types';
 import { loadWasmModule, validateWasmModule } from '../wasm/loader';
 import { WasmLoadError, WasmInitError } from '../wasm/types';
-import { Engine, Scene, ArcRotateCamera, HemisphericLight, DirectionalLight, Vector3, Mesh, StandardMaterial, Color3, Matrix, Quaternion } from '@babylonjs/core';
+import { Engine, Scene, ArcRotateCamera, HemisphericLight, DirectionalLight, Vector3, Mesh, Color3, Matrix, Quaternion, PBRMaterial } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { SceneLoader } from '@babylonjs/core';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
@@ -3332,7 +3332,7 @@ export const init = async (): Promise<void> => {
   // and use it directly for instancing. Materials are applied per instance.
   // The model dimensions are defined in TILE_CONFIG and already in pointy-top orientation.
   const baseMeshes = new Map<string, Mesh>();
-  const materials = new Map<TileType['type'], StandardMaterial>();
+  const materials = new Map<TileType['type'], PBRMaterial>();
   
   const tileTypes: TileType[] = [
     { type: 'grass' },
@@ -3436,10 +3436,13 @@ export const init = async (): Promise<void> => {
     baseMesh.isVisible = false;
     
     // Create materials for each tile type (will be applied per instance)
+    // Use PBRMaterial for better support of per-instance colors with thin instances
     for (const tileType of tileTypes) {
-      const material = new StandardMaterial(`material_${tileType.type}`, scene);
-      material.diffuseColor = getTileColor(tileType);
-      material.specularColor = new Color3(0.1, 0.1, 0.1);
+      const material = new PBRMaterial(`material_${tileType.type}`, scene);
+      const color = getTileColor(tileType);
+      material.albedoColor = color;
+      material.metallicF0Factor = 0.0;
+      material.roughness = 0.8;
       materials.set(tileType.type, material);
     }
     
@@ -3695,19 +3698,23 @@ export const init = async (): Promise<void> => {
     // The "matrix" attribute is the standard name for transformation matrices
     baseMesh.thinInstanceSetBuffer("matrix", matrices, 16);
     
-    // Set up thin instances with colors using the BabylonJS pattern
-    // Use "color" attribute name for better compatibility with built-in shaders
-    baseMesh.thinInstanceSetBuffer("color", bufferColors, 4);
+    // Set up thin instances with per-instance colors
+    // Use "instanceColor" attribute name for thin instance colors (BabylonJS standard)
+    baseMesh.thinInstanceSetBuffer("instanceColor", bufferColors, 4);
     
     // Set thin instance count after setting buffers (required for thin instances to render)
     baseMesh.thinInstanceCount = numInstances;
     
-    // Apply a base material to the mesh (thin instances will use per-instance colors)
-    // We'll use the first material as a base, but colors come from the buffer
+    // Apply a base material to the mesh
+    // PBRMaterial supports per-instance colors with thin instances automatically
     const baseMaterial = materials.get('grass');
     if (baseMaterial) {
       baseMesh.material = baseMaterial;
     }
+    
+    // Make the base mesh visible so thin instances render
+    // Thin instances are rendered as part of the base mesh
+    baseMesh.isVisible = true;
     
     const renderedCount = numInstances;
     
