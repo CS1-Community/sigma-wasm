@@ -799,65 +799,86 @@ pub fn generate_voronoi_regions(
     // Use deterministic selection with prime multiplier for good distribution
     // This ensures seeds are ALWAYS generated reliably
     let mut seeds: Vec<VoronoiSeed> = Vec::new();
-    let mut seed_counter = 0;
+    let mut seed_counter: usize = 0;
     
-    // Generate forest seeds
-    for i in 0..forest_seeds {
-        seed_counter += 1;
-        // Use deterministic selection: (counter * prime) % count for good distribution
-        // Prime 7919 provides good pseudo-random distribution
-        let index = if hex_count > 0 {
-            ((seed_counter as usize * 7919) + (i as usize * 997)) % hex_count
-        } else {
-            0
-        };
-        let (q, r) = hex_vec[index];
-        seeds.push(VoronoiSeed {
-            q,
-            r,
-            tile_type: TileType::Forest,
-        });
-    }
-    
-    // Generate water seeds
-    for i in 0..water_seeds {
-        seed_counter += 1;
-        let index = if hex_count > 0 {
-            ((seed_counter as usize * 7919) + (i as usize * 997)) % hex_count
-        } else {
-            0
-        };
-        let (q, r) = hex_vec[index];
-        seeds.push(VoronoiSeed {
-            q,
-            r,
-            tile_type: TileType::Water,
-        });
-    }
-    
-    // Generate grass seeds
-    for i in 0..grass_seeds {
-        seed_counter += 1;
-        let index = if hex_count > 0 {
-            ((seed_counter as usize * 7919) + (i as usize * 997)) % hex_count
-        } else {
-            0
-        };
-        let (q, r) = hex_vec[index];
-        seeds.push(VoronoiSeed {
-            q,
-            r,
-            tile_type: TileType::Grass,
-        });
-    }
-    
-    // If no seeds were generated, return empty array
-    // This can happen if seed counts are 0
-    if seeds.is_empty() {
+    // Ensure we have valid hex_count before generating seeds
+    // This should never be 0 at this point due to earlier checks, but be defensive
+    if hex_count == 0 {
         return "[]".to_string();
     }
     
+    // Generate forest seeds
+    // Ensure we have at least 0 seeds (handle negative values)
+    let forest_count = if forest_seeds > 0 { forest_seeds as usize } else { 0 };
+    for i in 0..forest_count {
+        seed_counter += 1;
+        // Use deterministic selection: (counter * prime) % count for good distribution
+        // Prime 7919 provides good pseudo-random distribution
+        let index = ((seed_counter * 7919) + (i * 997)) % hex_count;
+        // Bounds check (should always pass due to modulo, but be safe)
+        if index < hex_vec.len() {
+            let (q, r) = hex_vec[index];
+            seeds.push(VoronoiSeed {
+                q,
+                r,
+                tile_type: TileType::Forest,
+            });
+        }
+    }
+    
+    // Generate water seeds
+    let water_count = if water_seeds > 0 { water_seeds as usize } else { 0 };
+    for i in 0..water_count {
+        seed_counter += 1;
+        let index = ((seed_counter * 7919) + (i * 997)) % hex_count;
+        if index < hex_vec.len() {
+            let (q, r) = hex_vec[index];
+            seeds.push(VoronoiSeed {
+                q,
+                r,
+                tile_type: TileType::Water,
+            });
+        }
+    }
+    
+    // Generate grass seeds
+    let grass_count = if grass_seeds > 0 { grass_seeds as usize } else { 0 };
+    for i in 0..grass_count {
+        seed_counter += 1;
+        let index = ((seed_counter * 7919) + (i * 997)) % hex_count;
+        if index < hex_vec.len() {
+            let (q, r) = hex_vec[index];
+            seeds.push(VoronoiSeed {
+                q,
+                r,
+                tile_type: TileType::Grass,
+            });
+        }
+    }
+    
+    // CRITICAL: If no seeds were generated, force generation of at least one grass seed
+    // This should never happen with positive seed counts, but ensures function always works
+    if seeds.is_empty() {
+        // Force generate one seed at index 0 to ensure function doesn't return empty
+        if hex_count > 0 && !hex_vec.is_empty() {
+            let (q, r) = hex_vec[0];
+            seeds.push(VoronoiSeed {
+                q,
+                r,
+                tile_type: TileType::Grass,
+            });
+        } else {
+            return "[]".to_string();
+        }
+    }
+    
     // Assign each hex to nearest seed and build JSON
+    // Ensure seeds is not empty (should be guaranteed by fallback above)
+    if seeds.is_empty() {
+        // This should never happen due to fallback, but be extra defensive
+        return "[]".to_string();
+    }
+    
     let mut json_parts = Vec::new();
     for hex in hex_grid {
         let mut nearest_seed: Option<&VoronoiSeed> = None;
@@ -878,6 +899,15 @@ pub fn generate_voronoi_regions(
                 hex.q, hex.r, seed.tile_type as i32
             ));
         }
+    }
+    
+    // If json_parts is empty (shouldn't happen), return at least one entry from first seed
+    if json_parts.is_empty() && !seeds.is_empty() {
+        let first_seed = &seeds[0];
+        json_parts.push(format!(
+            r#"{{"q":{},"r":{},"tileType":{}}}"#,
+            first_seed.q, first_seed.r, first_seed.tile_type as i32
+        ));
     }
     
     format!("[{}]", json_parts.join(","))
