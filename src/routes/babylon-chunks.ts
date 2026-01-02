@@ -238,13 +238,13 @@ function getTileColor(tileType: TileType): Color3 {
     case 'grass':
       return new Color3(0.2, 0.8, 0.2); // Green
     case 'building':
-      return new Color3(0.5, 0.5, 0.5); // Gray
+      return new Color3(0.96, 0.96, 0.96); // Off-white
     case 'road':
-      return new Color3(0.3, 0.3, 0.3); // Dark gray
+      return new Color3(0.196, 0.196, 0.196); // Very dark gray
     case 'forest':
       return new Color3(0.1, 0.5, 0.1); // Dark green
     case 'water':
-      return new Color3(0.2, 0.4, 0.8); // Blue
+      return new Color3(0, 0.749, 1.0); // Bright brilliant blue
   }
 }
 
