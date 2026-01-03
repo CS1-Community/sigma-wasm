@@ -116,8 +116,9 @@
                             <option value="0">0 rings</option>
                             <option value="1">1 ring</option>
                             <option value="2">2 rings</option>
-                            <option value="5" selected>5 rings</option>
-                            <option value="10">10 rings</option>
+                            <option value="3">3 rings</option>
+                            <option value="5">5 rings</option>
+                            <option value="10" selected>10 rings</option>
                             <option value="20">20 rings</option>
                             <option value="40">40 rings</option>
                         </select>
@@ -132,14 +133,29 @@
                     <div>
                         <label for="backgroundColorSelect">Background Color:</label>
                         <select id="backgroundColorSelect" class="rings-select">
-                            <option value="#E3E9F2" selected>Cool mist gray-blue</option>
+                            <option value="#E3E9F2">Cool mist gray-blue</option>
                             <option value="#F2F2F4">Soft light gray</option>
                             <option value="#D7EFFE">Pale sky blue</option>
                             <option value="#CFEDE0">Muted mint</option>
                             <option value="#E8E4F5">Soft lavender gray</option>
                             <option value="#C7D5E2">Dusty blue-gray</option>
                             <option value="#EDE3D6">Warm light beige</option>
-                            <option value="#D0D3D8">Neutral mid-light gray</option>
+                            <option value="#D0D3D8" selected>Neutral mid-light gray</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="cameraModeSelect">Camera Mode:</label>
+                        <select id="cameraModeSelect" class="rings-select">
+                            <option value="free">Free Camera</option>
+                            <option value="simple-follow" selected>Simple Follow</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="logModeSelect">Log Mode:</label>
+                        <select id="logModeSelect" class="rings-select">
+                            <option value="minimal" selected>Minimal</option>
+                            <option value="verbose">Verbose</option>
+                            <option value="disabled">Disabled</option>
                         </select>
                     </div>
                 </div>
