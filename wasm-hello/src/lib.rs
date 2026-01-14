@@ -16,6 +16,8 @@ struct HelloState {
     counter: i32,
     /// Message string that can be set and retrieved
     message: String,
+    /// Message string that can be set and retrieved
+    team: String,
 }
 
 impl HelloState {
@@ -24,6 +26,7 @@ impl HelloState {
         HelloState {
             counter: 0,
             message: String::from("Rust WASM is so Sigma!"),
+            team: String::from("Giants"),
         }
     }
     
@@ -45,6 +48,16 @@ impl HelloState {
     /// Set a new message
     fn set_message(&mut self, message: String) {
         self.message = message;
+    }
+
+    /// Get the current message
+    fn get_fave_team(&self) -> String {
+        self.team.clone()
+    }
+    
+    /// Set a new message
+    fn set_fave_team(&mut self, team: String) {
+        self.team = team;
     }
 }
 
@@ -130,4 +143,33 @@ pub fn set_message(message: String) {
     let mut state = HELLO_STATE.lock().unwrap();
     state.set_message(message);
 }
+
+/// Get the current team
+/// 
+/// **Learning Point**: Strings in Rust need to be converted to JavaScript strings.
+/// `wasm-bindgen` handles this automatically when you return a `String` from a
+/// `#[wasm_bindgen]` function.
+/// 
+/// @returns The current team as a JavaScript string
+#[wasm_bindgen]
+pub fn get_fave_team() -> String {
+    let state = HELLO_STATE.lock().unwrap();
+    state.get_fave_team()
+}
+
+/// Set a new team
+/// 
+/// **Learning Point**: JavaScript strings are automatically converted to Rust `String`
+/// when passed as parameters to `#[wasm_bindgen]` functions.
+/// 
+/// **To extend**: You could add validation, length limits, or formatting here.
+/// 
+/// @param team - The new team to set
+#[wasm_bindgen]
+pub fn set_fave_team(team: String) {
+    let mut state = HELLO_STATE.lock().unwrap();
+    state.set_fave_team(team);
+}
+
+
 
