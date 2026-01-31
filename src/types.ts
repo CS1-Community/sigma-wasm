@@ -195,6 +195,8 @@ export interface WasmModuleHello {
   increment_counter(): void;
   get_message(): string;
   set_message(message: string): void;
+  get_fave_gum(): string;
+  set_fave_gum(gum: string): void;
 }
 
 export interface WasmHello {
