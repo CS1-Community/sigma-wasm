@@ -20,6 +20,8 @@ struct HelloState {
     gum: String,
     /// Squishy string that can be set and retrieved
     squishy: String,
+    /// Decimal number that can be adjusted via slider (-10.0 to 10.0)
+    decimal_number: f64,
 }
 
 impl HelloState {
@@ -30,6 +32,7 @@ impl HelloState {
             message: String::from("Rust WASM is so Sigma!"),
             gum: String::from("Hubba Bubba"),
             squishy: String::from("Pop It"),
+            decimal_number: 0.0,
         }
     }
     
@@ -71,6 +74,16 @@ impl HelloState {
     /// Set a new squishy
     fn set_fave_squishy(&mut self, squishy: String) {
         self.squishy = squishy;
+    }
+
+    /// Get the current decimal number
+    fn get_decimal_number(&self) -> f64 {
+        self.decimal_number
+    }
+    
+    /// Set a new decimal number
+    fn set_decimal_number(&mut self, value: f64) {
+        self.decimal_number = value;
     }
 }
 
@@ -209,4 +222,28 @@ pub fn get_fave_squishy() -> String {
 pub fn set_fave_squishy(squishy: String) {
     let mut state = HELLO_STATE.lock().unwrap();
     state.set_fave_squishy(squishy);
+}
+
+/// Get the current decimal number
+/// 
+/// **Learning Point**: This demonstrates working with floating-point numbers.
+/// JavaScript numbers are automatically converted to/from Rust f64.
+/// 
+/// @returns The current decimal number value
+#[wasm_bindgen]
+pub fn get_decimal_number() -> f64 {
+    let state = HELLO_STATE.lock().unwrap();
+    state.get_decimal_number()
+}
+
+/// Set a new decimal number
+/// 
+/// **Learning Point**: Slider values from JavaScript are passed as f64.
+/// You could add range validation here, though the slider already constrains input.
+/// 
+/// @param value - The new decimal number (-10.0 to 10.0)
+#[wasm_bindgen]
+pub fn set_decimal_number(value: f64) {
+    let mut state = HELLO_STATE.lock().unwrap();
+    state.set_decimal_number(value);
 }

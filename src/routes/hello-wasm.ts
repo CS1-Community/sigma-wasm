@@ -15,6 +15,53 @@ import { loadWasmModule, validateWasmModule } from '../wasm/loader';
 import { WasmLoadError, WasmInitError } from '../wasm/types';
 
 /**
+ * Throttle utility for slider updates
+ * 
+ * **Learning Point**: This implements a throttle that guarantees calls at most
+ * once per `limitMs` while still emitting the *latest* value.
+ * 
+ * @param fn - The function to throttle
+ * @param limitMs - Minimum milliseconds between calls
+ * @returns Throttled version of the function
+ */
+function throttle<T extends (...args: any[]) => void>(
+  fn: T,
+  limitMs: number
+): T {
+  let lastCall = 0;
+  let timeoutId: number | null = null;
+  let lastArgs: any[] | null = null;
+
+  const invoke = () => {
+    if (!lastArgs) return;
+    lastCall = performance.now();
+    fn(...lastArgs);
+    lastArgs = null;
+    timeoutId = null;
+  };
+
+  const throttled = (...args: any[]) => {
+    const now = performance.now();
+    lastArgs = args;
+
+    const remaining = limitMs - (now - lastCall);
+    if (remaining <= 0) {
+      // Enough time has passed: call immediately
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      invoke();
+    } else if (timeoutId === null) {
+      // Schedule once with latest args
+      timeoutId = window.setTimeout(invoke, remaining);
+    }
+  };
+
+  return throttled as T;
+}
+
+/**
  * Lazy WASM import - only load when init() is called
  * 
  * **Learning Point**: We use lazy imports to reduce initial bundle size.
@@ -33,6 +80,8 @@ let wasmModuleExports: {
   set_fave_gum: (gum: string) => void;
   get_fave_squishy: () => string;
   set_fave_squishy: (squishy: string) => void;
+  get_decimal_number: () => number;
+  set_decimal_number: (value: number) => void;
 } | null = null;
 
 /**
@@ -87,6 +136,12 @@ const getInitWasm = async (): Promise<unknown> => {
     if ('set_fave_squishy' in moduleUnknown) {
       moduleKeys.push('set_fave_squishy');
     }
+    if ('get_decimal_number' in moduleUnknown) {
+      moduleKeys.push('get_decimal_number');
+    }
+    if ('set_decimal_number' in moduleUnknown) {
+      moduleKeys.push('set_decimal_number');
+    }
     
     // Get all keys for error messages
     const allKeys = Object.keys(moduleUnknown);
@@ -123,6 +178,12 @@ const getInitWasm = async (): Promise<unknown> => {
     if (!('set_fave_squishy' in moduleUnknown) || typeof moduleUnknown.set_fave_squishy !== 'function') {
       throw new Error(`Module missing 'set_fave_squishy' export. Available: ${allKeys.join(', ')}`);
     }
+    if (!('get_decimal_number' in moduleUnknown) || typeof moduleUnknown.get_decimal_number !== 'function') {
+      throw new Error(`Module missing 'get_decimal_number' export. Available: ${allKeys.join(', ')}`);
+    }
+    if (!('set_decimal_number' in moduleUnknown) || typeof moduleUnknown.set_decimal_number !== 'function') {
+      throw new Error(`Module missing 'set_decimal_number' export. Available: ${allKeys.join(', ')}`);
+    }
     
     // Extract and assign functions - we've validated they exist and are functions above
     // Access properties directly after validation
@@ -136,6 +197,8 @@ const getInitWasm = async (): Promise<unknown> => {
     const setFaveGumFunc = moduleUnknown.set_fave_gum;
     const getFaveSquishyFunc = moduleUnknown.get_fave_squishy;
     const setFaveSquishyFunc = moduleUnknown.set_fave_squishy;
+    const getDecimalNumberFunc = moduleUnknown.get_decimal_number;
+    const setDecimalNumberFunc = moduleUnknown.set_decimal_number;
     
     if (typeof defaultFunc !== 'function') {
       throw new Error('default export is not a function');
@@ -167,6 +230,12 @@ const getInitWasm = async (): Promise<unknown> => {
     if (typeof setFaveSquishyFunc !== 'function') {
       throw new Error('set_fave_squishy export is not a function');
     }
+    if (typeof getDecimalNumberFunc !== 'function') {
+      throw new Error('get_decimal_number export is not a function');
+    }
+    if (typeof setDecimalNumberFunc !== 'function') {
+      throw new Error('set_decimal_number export is not a function');
+    }
     
     // TypeScript can't narrow Function to specific signatures after validation
     // Runtime validation ensures these are safe
@@ -191,6 +260,10 @@ const getInitWasm = async (): Promise<unknown> => {
       get_fave_squishy: getFaveSquishyFunc as () => string,
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       set_fave_squishy: setFaveSquishyFunc as (squishy: string) => void,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      get_decimal_number: getDecimalNumberFunc as () => number,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      set_decimal_number: setDecimalNumberFunc as (value: number) => void,
     };
   }
   if (!wasmModuleExports) {
@@ -281,6 +354,12 @@ function validateHelloModule(exports: unknown): WasmModuleHello | null {
     if (typeof wasmModuleExports.set_fave_squishy !== 'function') {
       missingExports.push('set_fave_squishy (function)');
     }
+    if (typeof wasmModuleExports.get_decimal_number !== 'function') {
+      missingExports.push('get_decimal_number (function)');
+    }
+    if (typeof wasmModuleExports.set_decimal_number !== 'function') {
+      missingExports.push('set_decimal_number (function)');
+    }
   }
   
   if (missingExports.length > 0) {
@@ -309,6 +388,8 @@ function validateHelloModule(exports: unknown): WasmModuleHello | null {
     set_fave_gum: wasmModuleExports.set_fave_gum,
     get_fave_squishy: wasmModuleExports.get_fave_squishy,
     set_fave_squishy: wasmModuleExports.set_fave_squishy,
+    get_decimal_number: wasmModuleExports.get_decimal_number,
+    set_decimal_number: wasmModuleExports.set_decimal_number,
   };
 }
 
@@ -378,6 +459,7 @@ export const init = async (): Promise<void> => {
   const messageDisplay = document.getElementById('message-display');
   const faveGumDisplay = document.getElementById('fave-gum-display');
   const faveSquishyDisplay = document.getElementById('fave-squishy-display');
+  const decimalNumberDisplay = document.getElementById('decimal-number-display');
   const incrementBtn = document.getElementById('increment-btn');
   const messageInputEl = document.getElementById('message-input');
   const setMessageBtn = document.getElementById('set-message-btn');
@@ -385,11 +467,13 @@ export const init = async (): Promise<void> => {
   const setFaveGumBtn = document.getElementById('set-fave-gum-btn');
   const faveSquishyInputEl = document.getElementById('fave-squishy-input');
   const setFaveSquishyBtn = document.getElementById('set-fave-squishy-btn');
+  const decimalNumberSlider = document.getElementById('decimal-number-slider');
   
   if (!counterDisplay || !messageDisplay || 
     !incrementBtn || !messageInputEl || !setMessageBtn ||
     !faveGumDisplay || !faveGumInputEl || !setFaveGumBtn ||
-    !faveSquishyDisplay || !faveSquishyInputEl || !setFaveSquishyBtn
+    !faveSquishyDisplay || !faveSquishyInputEl || !setFaveSquishyBtn ||
+    !decimalNumberDisplay || !decimalNumberSlider
   ) {
     throw new Error('Required UI elements not found');
   }
@@ -414,6 +498,13 @@ export const init = async (): Promise<void> => {
   }
   
   const faveSquishyInput = faveSquishyInputEl;
+
+  // Type narrowing for slider element
+  if (!(decimalNumberSlider instanceof HTMLInputElement)) {
+    throw new Error('decimal-number-slider element is not an HTMLInputElement');
+  }
+  
+  const slider = decimalNumberSlider;
   
   // Update display with initial values
   // **Learning Point**: We call WASM functions directly from TypeScript.
@@ -423,6 +514,9 @@ export const init = async (): Promise<void> => {
     messageDisplay.textContent = WASM_HELLO.wasmModule.get_message();
     faveGumDisplay.textContent = WASM_HELLO.wasmModule.get_fave_gum();
     faveSquishyDisplay.textContent = WASM_HELLO.wasmModule.get_fave_squishy();
+    const initialDecimal = WASM_HELLO.wasmModule.get_decimal_number();
+    slider.value = initialDecimal.toString();
+    decimalNumberDisplay.textContent = initialDecimal.toFixed(1);
   }
   
   // Set up event handlers
@@ -501,6 +595,34 @@ export const init = async (): Promise<void> => {
         faveSquishyDisplay.textContent = WASM_HELLO.wasmModule.get_fave_squishy();
         faveSquishyInput.value = '';
       }
+    }
+  });
+
+  // **Learning Point: Throttled Slider Updates**
+  // The slider uses throttling to limit WASM calls to at most once per 100ms
+  // while still capturing the final value on release.
+  // This balances responsiveness with performance.
+  
+  // Create throttled update function for smooth dragging
+  const throttledSliderUpdate = throttle((value: number) => {
+    if (WASM_HELLO.wasmModule) {
+      WASM_HELLO.wasmModule.set_decimal_number(value);
+      decimalNumberDisplay.textContent = value.toFixed(1);
+    }
+  }, 100);
+
+  // Handle slider input events (while dragging)
+  slider.addEventListener('input', (e: Event) => {
+    const value = Number((e.currentTarget as HTMLInputElement).value);
+    throttledSliderUpdate(value);
+  });
+
+  // Handle change event (on release) - ensures final value is committed
+  slider.addEventListener('change', (e: Event) => {
+    if (WASM_HELLO.wasmModule) {
+      const value = Number((e.currentTarget as HTMLInputElement).value);
+      WASM_HELLO.wasmModule.set_decimal_number(value);
+      decimalNumberDisplay.textContent = value.toFixed(1);
     }
   });
 };
