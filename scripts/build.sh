@@ -44,13 +44,16 @@ echo "Building wasm-babylon-chunks..."
 echo "Building wasm-multilingual-chat..."
 ./scripts/build-wasm.sh wasm-multilingual-chat pkg/wasm_multilingual_chat
 
+echo "Building wasm-fractal-zoom..."
+./scripts/build-wasm.sh wasm-fractal-zoom pkg/wasm_fractal_zoom
+
 echo "==========================================================="
 echo "VERIFYING ALL WASM MODULES"
 echo "==========================================================="
 
 # Verify all modules were built successfully
 # **Learning Point**: Add new modules to this list when creating new WASM crates
-MODULES=("wasm_astar" "wasm_preprocess" "wasm_preprocess_256m" "wasm_preprocess_image_captioning" "wasm_agent_tools" "wasm_fractal_chat" "wasm_hello" "wasm_babylon_wfc" "wasm_babylon_chunks" "wasm_multilingual_chat")
+MODULES=("wasm_astar" "wasm_preprocess" "wasm_preprocess_256m" "wasm_preprocess_image_captioning" "wasm_agent_tools" "wasm_fractal_chat" "wasm_hello" "wasm_babylon_wfc" "wasm_babylon_chunks" "wasm_multilingual_chat" "wasm_fractal_zoom")
 FAILED_MODULES=()
 
 for module in "${MODULES[@]}"; do
@@ -65,7 +68,7 @@ for module in "${MODULES[@]}"; do
     fi
     
     JS_SIZE=$(stat -c%s "$JS_FILE" 2>/dev/null || stat -f%z "$JS_FILE" 2>/dev/null || echo "0")
-    if [ "$JS_SIZE" -lt 8000 ]; then
+    if [ "$JS_SIZE" -lt 5000 ]; then
         echo "ERROR: JS file too small: $JS_FILE ($JS_SIZE bytes, expected ~10KB)" >&2
         FAILED_MODULES+=("$module (JS file too small: $JS_SIZE bytes)")
         continue

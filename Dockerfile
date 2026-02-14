@@ -42,6 +42,7 @@ COPY wasm-hello/Cargo.toml ./wasm-hello/
 COPY wasm-babylon-wfc/Cargo.toml ./wasm-babylon-wfc/
 COPY wasm-babylon-chunks/Cargo.toml ./wasm-babylon-chunks/
 COPY wasm-multilingual-chat/Cargo.toml ./wasm-multilingual-chat/
+COPY wasm-fractal-zoom/Cargo.toml ./wasm-fractal-zoom/
 
 # Add wasm32 target (must be done before building for wasm32-unknown-unknown)
 RUN rustup target add wasm32-unknown-unknown
@@ -50,7 +51,7 @@ RUN rustup target add wasm32-unknown-unknown
 # **Learning Point**: These dummy files allow Docker to cache compiled dependencies
 # separately from source code. When you change source, only source needs rebuilding.
 # Add new crates here when creating new WASM modules.
-RUN mkdir -p wasm-astar/src wasm-preprocess/src wasm-preprocess-256m/src wasm-preprocess-image-captioning/src wasm-agent-tools/src wasm-fractal-chat/src wasm-hello/src wasm-babylon-wfc/src wasm-babylon-chunks/src wasm-multilingual-chat/src && \
+RUN mkdir -p wasm-astar/src wasm-preprocess/src wasm-preprocess-256m/src wasm-preprocess-image-captioning/src wasm-agent-tools/src wasm-fractal-chat/src wasm-hello/src wasm-babylon-wfc/src wasm-babylon-chunks/src wasm-multilingual-chat/src wasm-fractal-zoom/src && \
     echo "fn main() {}" > wasm-astar/src/lib.rs || true && \
     echo "fn main() {}" > wasm-preprocess/src/lib.rs || true && \
     echo "fn main() {}" > wasm-preprocess-256m/src/lib.rs || true && \
@@ -60,7 +61,8 @@ RUN mkdir -p wasm-astar/src wasm-preprocess/src wasm-preprocess-256m/src wasm-pr
     echo "fn main() {}" > wasm-hello/src/lib.rs || true && \
     echo "fn main() {}" > wasm-babylon-wfc/src/lib.rs || true && \
     echo "fn main() {}" > wasm-babylon-chunks/src/lib.rs || true && \
-    echo "fn main() {}" > wasm-multilingual-chat/src/lib.rs || true
+    echo "fn main() {}" > wasm-multilingual-chat/src/lib.rs || true && \
+    echo "fn main() {}" > wasm-fractal-zoom/src/lib.rs || true
 
 # Build dependencies only (for caching)
 RUN cargo build --target wasm32-unknown-unknown --release --workspace || true
@@ -78,6 +80,7 @@ COPY wasm-hello ./wasm-hello
 COPY wasm-babylon-wfc ./wasm-babylon-wfc
 COPY wasm-babylon-chunks ./wasm-babylon-chunks
 COPY wasm-multilingual-chat ./wasm-multilingual-chat
+COPY wasm-fractal-zoom ./wasm-fractal-zoom
 COPY scripts ./scripts
 
 # Make build scripts executable

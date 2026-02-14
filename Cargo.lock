@@ -346,6 +346,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-fractal-zoom"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "wasm-hello"
 version = "0.1.0"
 dependencies = [

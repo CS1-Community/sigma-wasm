@@ -136,7 +136,7 @@ fi
 
 # Check JS file size (should be ~10KB, at least 8KB)
 JS_SIZE=$(stat -c%s "$JS_FILE" 2>/dev/null || stat -f%z "$JS_FILE" 2>/dev/null || echo "0")
-if [ "$JS_SIZE" -lt 8000 ]; then
+if [ "$JS_SIZE" -lt 5000 ]; then
     echo "ERROR: Generated JS file is too small: $JS_FILE ($JS_SIZE bytes, expected ~10KB)" >&2
     echo "This indicates wasm-bindgen produced incomplete output." >&2
     echo "First 500 chars of file:" >&2

@@ -385,3 +385,21 @@ export interface TextStats {
   averageWordLength: number;
 }
 
+// Fractal zoom module types
+export interface WasmModuleFractalZoom {
+  memory: WebAssembly.Memory;
+  generate_fractal(
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    zoom: number,
+    maxIters: number,
+    paletteId: number
+  ): Uint8Array;
+}
+
+export interface WasmFractalZoom {
+  wasmModule: WasmModuleFractalZoom | null;
+  wasmModulePath: string;
+}

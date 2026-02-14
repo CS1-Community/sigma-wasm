@@ -9,6 +9,7 @@ import { init as initHelloWasm } from './routes/hello-wasm';
 import { init as initBabylonWfc } from './routes/babylon-wfc';
 import { init as initBabylonChunks } from './routes/babylon-chunks';
 import { init as initMultilingualChat } from './routes/multilingual-chat';
+import { init as initFractalZoom } from './routes/fractal-zoom';
 import { registerServiceWorker, setupOfflineHandling } from './pwa/sw-register';
 
 type RouteHandler = () => Promise<void>;
@@ -26,18 +27,19 @@ routes.set('/hello-wasm', initHelloWasm);
 routes.set('/babylon-wfc', initBabylonWfc);
 routes.set('/babylon-chunks', initBabylonChunks);
 routes.set('/multilingual-chat', initMultilingualChat);
+routes.set('/fractal-zoom', initFractalZoom);
 
 async function route(): Promise<void> {
   const path = window.location.pathname;
-  
+
   // Root path shows landing page - no handler needed
   if (path === '/') {
     return;
   }
-  
+
   // Try exact match first
   let handler = routes.get(path);
-  
+
   // If no exact match, try to find a route that matches the start
   if (!handler) {
     for (const [routePath, routeHandler] of routes.entries()) {
@@ -47,7 +49,7 @@ async function route(): Promise<void> {
       }
     }
   }
-  
+
   // Also check for /pages/*.html paths (for direct HTML file access in dev)
   if (!handler) {
     if (path.includes('preprocess-smolvlm-500m')) {
@@ -70,9 +72,11 @@ async function route(): Promise<void> {
       handler = routes.get('/babylon-chunks');
     } else if (path.includes('multilingual-chat')) {
       handler = routes.get('/multilingual-chat');
+    } else if (path.includes('fractal-zoom')) {
+      handler = routes.get('/fractal-zoom');
     }
   }
-  
+
   if (handler) {
     try {
       await handler();

@@ -61,6 +61,10 @@ function devServerRouting(): Plugin {
           else if (url === '/multilingual-chat' || url.startsWith('/multilingual-chat?')) {
             req.url = '/pages/multilingual-chat.html' + (url.includes('?') ? url.substring(url.indexOf('?')) : '');
           }
+          // Rewrite /fractal-zoom to /pages/fractal-zoom.html
+          else if (url === '/fractal-zoom' || url.startsWith('/fractal-zoom?')) {
+            req.url = '/pages/fractal-zoom.html' + (url.includes('?') ? url.substring(url.indexOf('?')) : '');
+          }
         }
         next();
       });
@@ -704,6 +708,7 @@ export default defineConfig({
         'babylon-wfc': resolve(__dirname, 'pages/babylon-wfc.html'),
         'babylon-chunks': resolve(__dirname, 'pages/babylon-chunks.html'),
         'multilingual-chat': resolve(__dirname, 'pages/multilingual-chat.html'),
+        'fractal-zoom': resolve(__dirname, 'pages/fractal-zoom.html'),
       },
       output: {
         format: 'es',
