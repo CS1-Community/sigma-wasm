@@ -85,6 +85,9 @@ COPY wasm-multilingual-chat ./wasm-multilingual-chat
 COPY wasm-fractal-zoom ./wasm-fractal-zoom
 COPY wasm-babylon-mandelbulb ./wasm-babylon-mandelbulb
 COPY scripts ./scripts
+# Force update modification times of all source files to ensure cargo rebuilds them
+# instead of using cached artifacts from the dummy build (which have newer mtimes than git files)
+RUN find . -name "*.rs" -exec touch {} +
 
 # Make build scripts executable
 RUN chmod +x scripts/build.sh scripts/build-wasm.sh

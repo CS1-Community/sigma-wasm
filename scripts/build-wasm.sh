@@ -55,7 +55,12 @@ echo "Compiling $CRATE_NAME to WASM..."
 # This is critical in Docker where dummy files are built first for dependency caching
 # We need to aggressively clean to ensure cargo rebuilds with the real source files
 echo "Cleaning previous build artifacts for $CRATE_NAME..."
-cargo clean --package "$CRATE_NAME" 2>/dev/null || true
+# We must ensure this command succeeds or we fail.
+# If it fails, artifacts might remain and confuse cargo.
+if ! cargo clean --package "$CRATE_NAME"; then
+    echo "WARNING: cargo clean failed for $CRATE_NAME" >&2
+    # Try to proceed anyway as manual rm below might be enough
+fi
 # Also explicitly remove WASM artifacts to force rebuild
 rm -f "target/wasm32-unknown-unknown/release/${WASM_FILENAME}.wasm" 2>/dev/null || true
 rm -f "target/wasm32-unknown-unknown/release/deps/${WASM_FILENAME}*" 2>/dev/null || true
