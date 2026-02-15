@@ -12,8 +12,11 @@ let wasmModuleExports: {
 } | null = null;
 
 const getInitWasm = async (): Promise<unknown> => {
+    console.log('[BabylonMandelbulb] getInitWasm called');
     if (!wasmModuleExports) {
-        const module = await import('/pkg/wasm_babylon_mandelbulb/wasm_babylon_mandelbulb.js');
+        console.log('[BabylonMandelbulb] importing WASM module...');
+        const module = await import('../../pkg/wasm_babylon_mandelbulb/wasm_babylon_mandelbulb.js');
+        console.log('[BabylonMandelbulb] import successful', module);
         if (typeof module !== 'object' || module === null) {
             throw new Error('Imported module is not an object');
         }
@@ -47,7 +50,7 @@ const STATE: WasmBabylonMandelbulb & {
     paletteId: number;
 } = {
     wasmModule: null,
-    wasmModulePath: '/pkg/wasm_babylon_mandelbulb',
+    wasmModulePath: '../pkg/wasm_babylon_mandelbulb',
     engine: null,
     scene: null,
     config: null,
@@ -184,6 +187,7 @@ fn main(input : FragmentInputs) -> FragmentOutputs {
 `;
 
 export const init = async (): Promise<void> => {
+    console.log('[BabylonMandelbulb] init called');
     const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
     const loadingEl = document.getElementById('loading');
     const errorEl = document.getElementById('error');
@@ -204,8 +208,10 @@ export const init = async (): Promise<void> => {
         STATE.config = STATE.wasmModule.get_default_config();
 
         if (!(await WebGPUEngine.IsSupportedAsync)) {
+            console.error('[BabylonMandelbulb] WebGPU not supported');
             throw new Error('WebGPU is not supported in this browser.');
         }
+        console.log('[BabylonMandelbulb] WebGPU is supported');
 
         const engine = new WebGPUEngine(canvas);
         await engine.initAsync();
