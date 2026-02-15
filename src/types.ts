@@ -403,3 +403,16 @@ export interface WasmFractalZoom {
   wasmModule: WasmModuleFractalZoom | null;
   wasmModulePath: string;
 }
+
+export interface WasmBabylonMandelbulb {
+  wasmModule: WasmModuleBabylonMandelbulb | null;
+  wasmModulePath: string;
+}
+
+// Babylon Mandelbulb module types
+export interface WasmModuleBabylonMandelbulb {
+  memory: WebAssembly.Memory;
+  get_palette(id: number): any;
+  get_default_config(): any;
+  get_flat_palette(id: number): Float32Array;
+}

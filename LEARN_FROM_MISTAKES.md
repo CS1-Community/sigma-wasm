@@ -975,6 +975,84 @@ const result = await imageToTextPipeline(dataUrl);
 
 ---
 
+#### WGSL ShaderMaterial: Babylon-Flavored WGSL Syntax
+
+**What We Learned**: Babylon.js uses a preprocessed WGSL syntax that is NOT standard WGSL. Using standard WGSL structs, `@location` decorators, or the wrong shader store will cause silent pipeline failures with no clear compilation error — just hundreds of "Invalid RenderPipeline" warnings flooding the console.
+
+**The Mistakes**:
+
+1. **Wrong Shader Store**: Used `Effect.ShadersStore` (the GLSL store) instead of `ShaderStore.ShadersStoreWGSL`
+2. **Wrong Source Keys**: Tried `vertexSource`/`fragmentSource` which may bypass the WGSL preprocessor
+3. **Standard WGSL Syntax**: Used standard WGSL structs with `@location(0)`, `@builtin(position)` instead of Babylon's keywords
+4. **Missing Attribute Declarations**: Failed to declare `attribute position : vec3<f32>;` in the vertex shader source
+
+**The Impact**:
+- `Effect.ShadersStore` caused the engine to look up `.wgsl` files via network, falling back to `index.html` (producing `<!DOCTYPE html>` errors)
+- `vertexSource`/`fragmentSource` bypassed the WGSL preprocessor that transforms Babylon syntax
+- Standard WGSL structs weren't recognized by Babylon's preprocessor → "Invalid RenderPipeline" warnings
+- Missing attribute declarations meant `vertexInputs.position` had no binding → silent pipeline failure
+- Console flooded with hundreds of warnings, obscuring the actual root cause
+
+**The Solutions**:
+
+1. **Use `ShaderStore.ShadersStoreWGSL`** (NOT `Effect.ShadersStore`):
+   ```typescript
+   // WRONG: GLSL store
+   Effect.ShadersStore["myVertexShader"] = wgslCode;
+   
+   // WRONG: May bypass WGSL preprocessing
+   new ShaderMaterial("name", scene, { vertexSource: wgslCode, fragmentSource: wgslCode }, ...);
+   
+   // CORRECT: WGSL-specific store
+   ShaderStore.ShadersStoreWGSL["myVertexShader"] = wgslCode;
+   ShaderStore.ShadersStoreWGSL["myFragmentShader"] = wgslCode;
+   new ShaderMaterial("name", scene, { vertex: "my", fragment: "my" }, {
+       shaderLanguage: ShaderLanguage.WGSL,
+       uniformBuffers: ["Scene", "Mesh"],
+   });
+   ```
+
+2. **Use Babylon-Flavored WGSL Syntax** (NOT standard WGSL):
+   ```wgsl
+   // WRONG: Standard WGSL
+   struct VertexInput { @location(0) position: vec3f, };
+   @vertex fn main(input: VertexInput) -> VertexOutput { ... }
+   
+   // CORRECT: Babylon-flavored WGSL
+   #include<sceneUboDeclaration>
+   #include<meshUboDeclaration>
+   attribute position : vec3<f32>;
+   varying vMyVarying : vec3<f32>;
+   @vertex fn main(input : VertexInputs) -> FragmentInputs {
+       vertexOutputs.position = scene.viewProjection * mesh.world * vec4<f32>(vertexInputs.position, 1.0);
+       vertexOutputs.vMyVarying = ...;
+   }
+   ```
+
+3. **Fragment Shader Syntax**:
+   ```wgsl
+   uniform power : f32;
+   varying vMyVarying : vec3<f32>;
+   @fragment fn main(input : FragmentInputs) -> FragmentOutputs {
+       let v = fragmentInputs.vMyVarying;
+       let p = uniforms.power;
+       fragmentOutputs.color = vec4<f32>(1.0);
+   }
+   ```
+
+**Key Rules for Babylon-Flavored WGSL**:
+- Vertex: `VertexInputs` → `FragmentInputs` (NOT custom structs)
+- Fragment: `FragmentInputs` → `FragmentOutputs`
+- Attributes: `attribute name : type;` + `vertexInputs.name`
+- Varyings: `varying name : type;` + `vertexOutputs.name` / `fragmentInputs.name`
+- Uniforms: `uniform name : type;` + `uniforms.name`
+- Built-in matrices: `#include<sceneUboDeclaration>` → `scene.viewProjection`, `#include<meshUboDeclaration>` → `mesh.world`
+- Do NOT add `@group(X) @binding(Y)` — the system adds them automatically
+
+**Reference**: [Playground #6GFJNR#178](https://playground.babylonjs.com/?webgpu#6GFJNR#178), [Babylon WGSL Docs](https://doc.babylonjs.com/setup/support/webGPU/webGPUWGSL)
+
+---
+
 **Model**: `Xenova/distilgpt2` (DistilGPT-2)
 **Endpoint**: `/function-calling`
 **Library**: `@xenova/transformers` + Rust WASM (`wasm-agent-tools`)

@@ -65,6 +65,10 @@ function devServerRouting(): Plugin {
           else if (url === '/fractal-zoom' || url.startsWith('/fractal-zoom?')) {
             req.url = '/pages/fractal-zoom.html' + (url.includes('?') ? url.substring(url.indexOf('?')) : '');
           }
+          // Rewrite /babylon-mandelbulb to /pages/babylon-mandelbulb.html
+          else if (url === '/babylon-mandelbulb' || url.startsWith('/babylon-mandelbulb?')) {
+            req.url = '/pages/babylon-mandelbulb.html' + (url.includes('?') ? url.substring(url.indexOf('?')) : '');
+          }
         }
         next();
       });
@@ -91,12 +95,12 @@ function copyDir(src: string, dest: string, moduleName: string): void {
     } else if (entry.name.endsWith('.js')) {
       // For JS files, read, rewrite import.meta.url to use absolute paths, then write
       let content = readFileSync(srcPath, 'utf-8');
-      
+
       // Verify source file has content before processing
       if (!content || content.length === 0) {
         throw new Error(`Empty source file: ${srcPath}`);
       }
-      
+
       // Verify source file size is reasonable (should be at least 8KB for WASM modules)
       // Files around 3.5KB are incomplete (only have initialization code, no exports)
       // This catches incomplete files from the rust-builder stage
@@ -106,7 +110,7 @@ function copyDir(src: string, dest: string, moduleName: string): void {
           const match = exp.match(/export\s+(?:function|const|let|var)\s+(\w+)/);
           return match ? match[1] : '';
         }).filter(Boolean);
-        
+
         // Check if file has exports - if it's small but has exports, it might be OK
         // But if it's small AND has no exports, it's definitely incomplete
         if (sourceExportNames.length === 0) {
@@ -117,14 +121,14 @@ function copyDir(src: string, dest: string, moduleName: string): void {
             `First 300 chars: ${content.substring(0, 300)}`
           );
         }
-        
+
         // If it has exports but is small, log a warning but allow it
         console.warn(
           `[copy-wasm-modules] Warning: Source file ${srcPath} is smaller than expected ` +
           `(${content.length} bytes, expected ~10KB) but has ${sourceExportNames.length} exports: ${sourceExportNames.join(', ')}`
         );
       }
-      
+
       // Verify source file has exports before processing (critical check)
       const sourceExportCount = (content.match(/export\s+(function|const|let|var|default|{)/g) || []).length;
       if (sourceExportCount === 0 && entry.name.includes('wasm_')) {
@@ -135,7 +139,7 @@ function copyDir(src: string, dest: string, moduleName: string): void {
           `First 500 chars: ${content.substring(0, 500)}`
         );
       }
-      
+
       // Rewrite: new URL('wasm_module_bg.wasm', import.meta.url)
       // To: '/pkg/wasm_module/wasm_module_bg.wasm'
       // This ensures WASM binaries load correctly regardless of where the script is located
@@ -146,7 +150,7 @@ function copyDir(src: string, dest: string, moduleName: string): void {
           return quote + absolutePath + quote;
         }
       );
-      
+
       // Verify exports are preserved after processing (check for export statements)
       const exportCount = (content.match(/export\s+(function|const|let|var|default|{)/g) || []).length;
       if (exportCount === 0 && entry.name.includes('wasm_')) {
@@ -156,7 +160,7 @@ function copyDir(src: string, dest: string, moduleName: string): void {
           `This suggests the regex replacement broke the file.`
         );
       }
-      
+
       // Verify file size is reasonable after processing (should be at least 3KB for WASM modules)
       if (content.length < 3000 && entry.name.includes('wasm_') && !entry.name.includes('.d.ts')) {
         throw new Error(
@@ -164,9 +168,9 @@ function copyDir(src: string, dest: string, moduleName: string): void {
           `Source was ${readFileSync(srcPath, 'utf-8').length} bytes.`
         );
       }
-      
+
       writeFileSync(destPath, content, 'utf-8');
-      
+
       // Verify the written file
       const writtenContent = readFileSync(destPath, 'utf-8');
       if (writtenContent.length !== content.length) {
@@ -191,25 +195,25 @@ function removeVitePreload(): Plugin {
       if (!code.includes('/pkg/')) {
         return null;
       }
-      
+
       // Check if it contains __vitePreload with pkg/
       const hasVitePreload = code.includes('__vitePreload') && code.includes('/pkg/');
       if (!hasVitePreload) {
         return null;
       }
-      
+
       let modifiedCode = code;
-      
+
       // Try multiple patterns to catch all variations
       let totalReplacements = 0;
-      
+
       // Pattern 1: Match with []: __vitePreload(()=>import("/pkg/..."),[])
       const pattern1 = /__vitePreload\s*\(\s*\(\)\s*=>\s*import\s*\((['"])\/pkg\/([^'"]+)\1\)\s*,\s*\[\]\s*\)/g;
       modifiedCode = modifiedCode.replace(pattern1, (match, quote, path) => {
         totalReplacements++;
         return `import(${quote}/pkg/${path}${quote})`;
       });
-      
+
       // Pattern 2: Match with __VITE_IS_MODERN__ condition: __vitePreload(() => import('/pkg/...'),__VITE_IS_MODERN__?__VITE_PRELOAD__:void)
       // This is the actual pattern Vite uses in production builds
       const pattern2 = /__vitePreload\s*\(\s*\(\)\s*=>\s*import\s*\((['"])\/pkg\/([^'"]+)\1\)\s*,\s*[^)]+\)/g;
@@ -217,11 +221,11 @@ function removeVitePreload(): Plugin {
         totalReplacements++;
         return `import(${quote}/pkg/${path}${quote})`;
       });
-      
+
       if (totalReplacements === 0) {
         return null;
       }
-      
+
       return modifiedCode !== code ? { code: modifiedCode, map: null } : null;
     },
     generateBundle(options, bundle) {
@@ -231,11 +235,11 @@ function removeVitePreload(): Plugin {
         if (chunkOrAsset.type === 'chunk' && chunkOrAsset.code) {
           let code = chunkOrAsset.code;
           const beforeCount = (code.match(/__vitePreload[^)]*import[^)]*\/pkg[^)]*\)/g) || []).length;
-          
+
           if (beforeCount === 0) {
             continue;
           }
-          
+
           // Remove __vitePreload wrapper - match both patterns
           // Pattern 1: with []
           code = code.replace(
@@ -245,7 +249,7 @@ function removeVitePreload(): Plugin {
               return `import(${quote}/pkg/${path}${quote})`;
             }
           );
-          
+
           // Pattern 2: with __VITE_IS_MODERN__ condition
           code = code.replace(
             /__vitePreload\s*\(\s*\(\)\s*=>\s*import\s*\((['"])\/pkg\/([^'"]+)\1\)\s*,\s*[^)]+\)/g,
@@ -254,12 +258,12 @@ function removeVitePreload(): Plugin {
               return `import(${quote}/pkg/${path}${quote})`;
             }
           );
-          
+
           const afterCount = (code.match(/__vitePreload[^)]*import[^)]*\/pkg[^)]*\)/g) || []).length;
           if (beforeCount > afterCount) {
             console.log(`[remove-vite-preload] generateBundle: Replaced ${beforeCount - afterCount} occurrences in ${fileName}`);
           }
-          
+
           chunkOrAsset.code = code;
         }
       }
@@ -279,7 +283,7 @@ function rewriteWasmImports(): Plugin {
       // This ensures we catch dynamic imports even when modules are marked external
       // Rewrite relative pkg/ imports to absolute /pkg/ paths
       let modifiedCode = code;
-      
+
       // Pattern 1: import('../../pkg/...') or import("../pkg/...")
       modifiedCode = modifiedCode.replace(
         /import\s*\((['"])(\.\.\/)+pkg\/([^'"]+)\1\)/g,
@@ -287,7 +291,7 @@ function rewriteWasmImports(): Plugin {
           return `import(${quote}/pkg/${path}${quote})`;
         }
       );
-      
+
       // Pattern 2: Single level relative ../pkg/...
       modifiedCode = modifiedCode.replace(
         /import\s*\((['"])\.\.\/pkg\/([^'"]+)\1\)/g,
@@ -295,10 +299,10 @@ function rewriteWasmImports(): Plugin {
           return `import(${quote}/pkg/${path}${quote})`;
         }
       );
-      
+
       // Pattern 3: Already absolute but might need fixing (shouldn't happen, but just in case)
       // This is a no-op but ensures consistency
-      
+
       return modifiedCode !== code ? { code: modifiedCode, map: null } : null;
     },
     generateBundle(options, bundle) {
@@ -306,7 +310,7 @@ function rewriteWasmImports(): Plugin {
       for (const [fileName, chunkOrAsset] of Object.entries(bundle)) {
         if (chunkOrAsset.type === 'chunk' && chunkOrAsset.code) {
           let code = chunkOrAsset.code;
-          
+
           // Same patterns as renderChunk
           code = code.replace(
             /import\s*\((['"])(\.\.\/)+pkg\/([^'"]+)\1\)/g,
@@ -314,14 +318,14 @@ function rewriteWasmImports(): Plugin {
               return `import(${quote}/pkg/${path}${quote})`;
             }
           );
-          
+
           code = code.replace(
             /import\s*\((['"])\.\.\/pkg\/([^'"]+)\1\)/g,
             (match, quote, path) => {
               return `import(${quote}/pkg/${path}${quote})`;
             }
           );
-          
+
           chunkOrAsset.code = code;
         }
       }
@@ -334,14 +338,14 @@ function validateWasmModuleExports(filePath: string, moduleName: string): void {
   if (!existsSync(filePath)) {
     throw new Error(`Module ${moduleName} validation failed: File does not exist at ${filePath}`);
   }
-  
+
   const content = readFileSync(filePath, 'utf-8');
-  
+
   // Verify file has content
   if (!content || content.length === 0) {
     throw new Error(`Module ${moduleName} validation failed: File is empty at ${filePath}`);
   }
-  
+
   // Define expected exports for each module
   const expectedExports: Record<string, string[]> = {
     wasm_agent_tools: ['calculate', 'process_text', 'get_stats'],
@@ -352,13 +356,13 @@ function validateWasmModuleExports(filePath: string, moduleName: string): void {
     wasm_babylon_wfc: ['generate_layout', 'get_tile_at', 'set_pre_constraint', 'clear_pre_constraints', 'clear_layout', 'get_stats', 'generate_voronoi_regions', 'validate_road_connectivity'],
     wasm_babylon_chunks: ['generate_layout', 'get_tile_at', 'set_pre_constraint', 'clear_pre_constraints', 'clear_layout', 'get_stats', 'generate_voronoi_regions', 'validate_road_connectivity', 'hex_astar', 'build_path_between_roads', 'generate_road_network_growing_tree', 'get_wasm_version'],
   };
-  
+
   const expected = expectedExports[moduleName];
   if (!expected) {
     // Module not in our list, skip validation
     return;
   }
-  
+
   const missingExports: string[] = [];
   for (const exportName of expected) {
     // Check for export function exportName or export const exportName
@@ -369,7 +373,7 @@ function validateWasmModuleExports(filePath: string, moduleName: string): void {
       missingExports.push(exportName);
     }
   }
-  
+
   if (missingExports.length > 0) {
     // Find what exports are actually present for better debugging
     const actualExports = content.match(/export\s+(function|const|let|var)\s+(\w+)\s*[=(]/g) || [];
@@ -377,7 +381,7 @@ function validateWasmModuleExports(filePath: string, moduleName: string): void {
       const match = exp.match(/export\s+(?:function|const|let|var)\s+(\w+)/);
       return match ? match[1] : '';
     }).filter(Boolean);
-    
+
     throw new Error(
       `Module ${moduleName} is missing required exports: ${missingExports.join(', ')}. ` +
       `File: ${filePath}. ` +
@@ -385,7 +389,7 @@ function validateWasmModuleExports(filePath: string, moduleName: string): void {
       `Actual exports found: ${actualExportNames.join(', ') || 'none'}`
     );
   }
-  
+
   console.log(`[copy-wasm-modules] ✓ Validated ${moduleName}: all ${expected.length} exports present`);
 }
 
@@ -575,12 +579,12 @@ function copyWasmModules(): Plugin {
 
       if (existsSync(pkgDir)) {
         console.log(`[copy-wasm-modules] Copying pkg/ directory from ${pkgDir} to ${distPkgDir}`);
-        
+
         // Remove existing dist/pkg if it exists to ensure clean copy
         if (existsSync(distPkgDir)) {
           rmSync(distPkgDir, { recursive: true, force: true });
         }
-        
+
         // Copy with base path for import.meta.url rewriting
         const entries = readdirSync(pkgDir, { withFileTypes: true });
         for (const entry of entries) {
@@ -592,7 +596,7 @@ function copyWasmModules(): Plugin {
               join(distPkgDir, moduleName),
               moduleName
             );
-            
+
             // Validate the copied JS file has all expected exports
             const jsFilePath = join(distPkgDir, moduleName, `${moduleName}.js`);
             if (existsSync(jsFilePath)) {
@@ -600,7 +604,7 @@ function copyWasmModules(): Plugin {
             }
           }
         }
-        
+
         console.log(`[copy-wasm-modules] ✓ Copy complete`);
       } else {
         console.warn(`[copy-wasm-modules] Warning: pkg/ directory not found at ${pkgDir}`);
@@ -618,7 +622,7 @@ function copyWasmModules(): Plugin {
       if (existsSync(pkgDir)) {
         const distPkgExists = existsSync(distPkgDir);
         let distPkgEmpty = false;
-        
+
         if (distPkgExists) {
           try {
             const entries = readdirSync(distPkgDir, { withFileTypes: true });
@@ -628,7 +632,7 @@ function copyWasmModules(): Plugin {
             distPkgEmpty = true;
           }
         }
-        
+
         if (!distPkgExists || distPkgEmpty) {
           if (distPkgEmpty && distPkgExists) {
             console.log(`[copy-wasm-modules] Fallback: dist/pkg exists but is empty, copying in buildEnd hook`);
@@ -640,7 +644,7 @@ function copyWasmModules(): Plugin {
           } else {
             console.log(`[copy-wasm-modules] Fallback: dist/pkg doesn't exist, copying in buildEnd hook`);
           }
-          
+
           const entries = readdirSync(pkgDir, { withFileTypes: true });
           for (const entry of entries) {
             if (entry.isDirectory()) {
@@ -651,7 +655,7 @@ function copyWasmModules(): Plugin {
                   join(distPkgDir, moduleName),
                   moduleName
                 );
-                
+
                 // Validate the copied JS file - but only if it exists and has content
                 // In buildEnd (fallback), we log warnings instead of throwing errors
                 const jsFilePath = join(distPkgDir, moduleName, `${moduleName}.js`);
@@ -709,6 +713,7 @@ export default defineConfig({
         'babylon-chunks': resolve(__dirname, 'pages/babylon-chunks.html'),
         'multilingual-chat': resolve(__dirname, 'pages/multilingual-chat.html'),
         'fractal-zoom': resolve(__dirname, 'pages/fractal-zoom.html'),
+        'babylon-mandelbulb': resolve(__dirname, 'pages/babylon-mandelbulb.html'),
       },
       output: {
         format: 'es',
@@ -720,25 +725,25 @@ export default defineConfig({
         // 2. import.meta.url (so WASM binary paths work correctly)
         // The rewriteWasmImports plugin rewrites import paths to absolute /pkg/ paths
         // The copyWasmModules plugin copies files to dist/pkg/ with rewritten WASM paths
-        
+
         // Handle various path formats:
         // - /pkg/... (absolute)
         // - ./pkg/... or ../pkg/... (relative)
         // - pkg/... (no leading slash)
         // - Windows paths with backslashes
-        const isExternal = 
-          id.includes('/pkg/') || 
+        const isExternal =
+          id.includes('/pkg/') ||
           id.includes('\\pkg\\') ||
           id.startsWith('pkg/') ||
           id.startsWith('./pkg/') ||
           id.startsWith('../pkg/') ||
           /^\.\.\/.*pkg\//.test(id) ||
           /^\.\/.*pkg\//.test(id);
-        
+
         if (isExternal) {
           console.log(`[vite-external] Marking as external: ${id}`);
         }
-        
+
         return isExternal;
       },
     },

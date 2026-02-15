@@ -10,6 +10,7 @@ import { init as initBabylonWfc } from './routes/babylon-wfc';
 import { init as initBabylonChunks } from './routes/babylon-chunks';
 import { init as initMultilingualChat } from './routes/multilingual-chat';
 import { init as initFractalZoom } from './routes/fractal-zoom';
+import { init as initBabylonMandelbulb } from './routes/babylon-mandelbulb';
 import { registerServiceWorker, setupOfflineHandling } from './pwa/sw-register';
 
 type RouteHandler = () => Promise<void>;
@@ -28,6 +29,7 @@ routes.set('/babylon-wfc', initBabylonWfc);
 routes.set('/babylon-chunks', initBabylonChunks);
 routes.set('/multilingual-chat', initMultilingualChat);
 routes.set('/fractal-zoom', initFractalZoom);
+routes.set('/babylon-mandelbulb', initBabylonMandelbulb);
 
 async function route(): Promise<void> {
   const path = window.location.pathname;
@@ -74,6 +76,8 @@ async function route(): Promise<void> {
       handler = routes.get('/multilingual-chat');
     } else if (path.includes('fractal-zoom')) {
       handler = routes.get('/fractal-zoom');
+    } else if (path.includes('babylon-mandelbulb')) {
+      handler = routes.get('/babylon-mandelbulb');
     }
   }
 
