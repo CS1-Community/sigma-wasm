@@ -23,6 +23,28 @@ This document captures critical lessons learned from building a production web a
 
 ---
 
+## Critical Recent Lessons (Feb 2026)
+
+### Nginx Routing: Prefix Matching vs Exact Match
+**Date:** 2026-02-14
+**Context:** Deployment of `/babylon-mandelbulb` and `/fractal-zoom` routes.
+**Problem:** `location = /sub-route` in `nginx.conf.template` failed to match requests (likely due to trailing slashes or parameters), causing fallback to `index.html`. This resulted in "Canvas element not found" errors because the Javascript was running on the wrong HTML page.
+**Solution:** Use prefix matching (`location /sub-route`) instead of exact matching (`location = /sub-route`) to robustly serve the correct static HTML file for the route.
+**Rule:** Always use prefix matching for sub-route location blocks unless exact matching is strictly required.
+
+### WASM Loading: Robust Validation Pattern
+**Date:** 2026-02-14
+**Context:** `babylon-mandelbulb` and `fractal-zoom` loading failures.
+**Problem:** Relative import paths (`../../pkg`) were fragile, and the `init` function failed silently when the canvas was missing (due to the Nginx routing issue).
+**Solution:**
+1.  **Imports:** Use `../../pkg/...` for `import()` to satisfy Vite's build resolution.
+2.  **Path:** Use `../pkg/...` for `wasmModulePath` (runtime fetch path).
+3.  **Validation:** Explicitly validate all expected exports in `getInitWasm` and throw descriptive errors.
+4.  **Logging:** Log entry into `init` and `getInitWasm`, and log any failures to find DOM elements.
+**Rule:** Follow the `hello-wasm` pattern strictly. Do not use silent returns.
+
+---
+
 ## Overview
 
 This application integrates multiple LLM approaches for different use cases, but more importantly, it documents the mistakes we made and how we fixed them. Each section below includes:

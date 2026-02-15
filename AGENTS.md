@@ -147,6 +147,8 @@ When adding a new endpoint, update ALL of:
 | Route | [`src/routes/fractal-zoom.ts`](src/routes/fractal-zoom.ts) |
 | WASM Crate | [`wasm-fractal-zoom/`](wasm-fractal-zoom/) |
 
+**Relevant LEARN_FROM_MISTAKES sections**: Nginx Routing: Prefix Matching vs Exact Match, WASM Loading: Robust Validation Pattern
+
 ---
 
 ### 9. Multilingual Chat (`/multilingual-chat`)
@@ -203,7 +205,7 @@ When adding a new endpoint, update ALL of:
 | Route | [`src/routes/babylon-mandelbulb.ts`](src/routes/babylon-mandelbulb.ts) |
 | WASM Crate | [`wasm-babylon-mandelbulb/`](wasm-babylon-mandelbulb/) |
 
-**Relevant LEARN_FROM_MISTAKES sections**: WGSL ShaderMaterial: Babylon-Flavored WGSL Syntax
+**Relevant LEARN_FROM_MISTAKES sections**: WGSL ShaderMaterial: Babylon-Flavored WGSL Syntax, Nginx Routing: Prefix Matching vs Exact Match, WASM Loading: Robust Validation Pattern
 
 > [!IMPORTANT]
 > This endpoint uses **WGSL shaders** (NOT GLSL). Babylon.js requires a specific "Babylon-flavored" WGSL syntax with `#include<sceneUboDeclaration>`, `attribute`, `varying`, `uniform` keywords, and `VertexInputs`/`FragmentInputs` struct names. See LEARN_FROM_MISTAKES.md for critical details.
