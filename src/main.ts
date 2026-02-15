@@ -39,6 +39,18 @@ async function route(): Promise<void> {
     return;
   }
 
+  console.log(`[Router] Routing to: ${path}`);
+  console.log(`[Router] Current Document Title: ${document.title}`);
+
+  // Diagnose if we are wrongly on index.html
+  if (!document.getElementById('renderCanvas') && !document.getElementById('fractal-canvas')) {
+    const appElement = document.getElementById('app');
+    if (appElement && document.querySelector('a[href="/"]')) {
+      console.warn('[Router] WARNING: It appears we are on the landing page (index.html) but routing to a subpage.',
+        'Nginx may be misconfigured to serve index.html for this route.');
+    }
+  }
+
   // Try exact match first
   let handler = routes.get(path);
 
