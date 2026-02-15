@@ -219,6 +219,7 @@ When adding a new endpoint, update ALL of:
 | [`Dockerfile`](Dockerfile) | Multi-stage Docker build (Rust → Node → Nginx) |
 | [`render.yaml`](render.yaml) | Render.com deployment config + build filter paths |
 | [`scripts/build.sh`](scripts/build.sh) | WASM build script |
+| [`scripts/build-wasm.sh`](scripts/build-wasm.sh) | Individual WASM module build script (handles caching) |
 | [`nginx.conf.template`](nginx.conf.template) | Production routing |
 | [`tsconfig.json`](tsconfig.json) | TypeScript config |
 | [`package.json`](package.json) | Node dependencies |
