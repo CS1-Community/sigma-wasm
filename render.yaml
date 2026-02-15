@@ -32,6 +32,8 @@ services:
         - wasm-babylon-wfc/**
         - wasm-babylon-chunks/**
         - wasm-multilingual-chat/**
+        - wasm-fractal-zoom/**
+        - wasm-babylon-mandelbulb/**
         - Cargo.toml
         - package.json
         - vite.config.ts

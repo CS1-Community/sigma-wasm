@@ -92,7 +92,7 @@ RUN chmod +x scripts/build.sh scripts/build-wasm.sh
 # Clean target directory to ensure fresh build with real source files
 # This is critical because the dependency build step (#27) built with dummy files
 # and cargo may use cached artifacts if we don't clean
-RUN cargo clean --target wasm32-unknown-unknown || true
+# RUN cargo clean --target wasm32-unknown-unknown || true
 
 # Build WASM modules
 RUN ./scripts/build.sh
