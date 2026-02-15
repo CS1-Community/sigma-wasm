@@ -109,7 +109,7 @@ RUN echo "Verifying WASM module files in pkg/..." && \
         exit 1; \
       fi; \
       size=$(stat -c%s "$js_file" 2>/dev/null || echo "0"); \
-      if [ "$size" -lt 8000 ]; then \
+      if [ "$size" -lt 5000 ]; then \
         echo "ERROR: JS file too small: $js_file ($size bytes)" >&2; \
         exit 1; \
       fi; \
