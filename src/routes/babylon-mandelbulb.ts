@@ -13,7 +13,7 @@ let wasmModuleExports: {
 
 const getInitWasm = async (): Promise<unknown> => {
     if (!wasmModuleExports) {
-        const module = await import('../../pkg/wasm_babylon_mandelbulb/wasm_babylon_mandelbulb.js');
+        const module = await import('/pkg/wasm_babylon_mandelbulb/wasm_babylon_mandelbulb.js');
         if (typeof module !== 'object' || module === null) {
             throw new Error('Imported module is not an object');
         }
@@ -47,7 +47,7 @@ const STATE: WasmBabylonMandelbulb & {
     paletteId: number;
 } = {
     wasmModule: null,
-    wasmModulePath: '../../pkg/wasm_babylon_mandelbulb',
+    wasmModulePath: '/pkg/wasm_babylon_mandelbulb',
     engine: null,
     scene: null,
     config: null,
