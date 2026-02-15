@@ -15,15 +15,27 @@ let wasmModuleExports: {
 } | null = null;
 
 const getInitWasm = async (): Promise<unknown> => {
+    console.log('[FractalZoom] getInitWasm called');
     if (!wasmModuleExports) {
-        const module = await import('../../pkg/wasm_fractal_zoom/wasm_fractal_zoom.js');
-        if (typeof module !== 'object' || module === null) {
+        console.log('[FractalZoom] importing WASM module...');
+        const moduleUnknown: unknown = await import('../../pkg/wasm_fractal_zoom/wasm_fractal_zoom.js');
+        console.log('[FractalZoom] import successful', moduleUnknown);
+
+        if (typeof moduleUnknown !== 'object' || moduleUnknown === null) {
             throw new Error('Imported module is not an object');
         }
 
+        // Validate required exports exist
+        if (!('default' in moduleUnknown) || typeof (moduleUnknown as any).default !== 'function') {
+            throw new Error('Module missing default export or it is not a function');
+        }
+        if (!('generate_fractal' in moduleUnknown) || typeof (moduleUnknown as any).generate_fractal !== 'function') {
+            throw new Error('Module missing generate_fractal export');
+        }
+
         wasmModuleExports = {
-            default: module.default as () => Promise<unknown>,
-            generate_fractal: module.generate_fractal as any,
+            default: (moduleUnknown as any).default as () => Promise<unknown>,
+            generate_fractal: (moduleUnknown as any).generate_fractal as any,
         };
     }
     return wasmModuleExports.default();
@@ -54,7 +66,7 @@ const STATE: WasmFractalZoom & {
     ctx: CanvasRenderingContext2D | null;
 } = {
     wasmModule: null,
-    wasmModulePath: '../../pkg/wasm_fractal_zoom',
+    wasmModulePath: '../pkg/wasm_fractal_zoom',
     centerX: -0.5,
     centerY: 0,
     zoom: 1.0,
@@ -72,6 +84,7 @@ const STATE: WasmFractalZoom & {
 type f64 = number;
 
 export const init = async (): Promise<void> => {
+    console.log('[FractalZoom] init called');
     const loadingEl = document.getElementById('loading');
     const errorEl = document.getElementById('error');
     const canvasEl = document.getElementById('fractal-canvas') as HTMLCanvasElement;
@@ -81,12 +94,16 @@ export const init = async (): Promise<void> => {
     const zoomSlider = document.getElementById('zoom-slider') as HTMLInputElement;
     const zoomValue = document.getElementById('zoom-value');
 
-    if (!canvasEl) return;
+    if (!canvasEl) {
+        console.error('[FractalZoom] Canvas element "fractal-canvas" not found');
+        return;
+    }
 
     STATE.canvas = canvasEl;
     STATE.ctx = canvasEl.getContext('2d');
 
     try {
+        console.log('[FractalZoom] Loading WASM module...');
         STATE.wasmModule = await loadWasmModule<WasmModuleFractalZoom>(
             getInitWasm,
             validateFractalZoomModule
