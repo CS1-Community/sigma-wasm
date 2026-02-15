@@ -15,17 +15,34 @@ const getInitWasm = async (): Promise<unknown> => {
     console.log('[BabylonMandelbulb] getInitWasm called');
     if (!wasmModuleExports) {
         console.log('[BabylonMandelbulb] importing WASM module...');
-        const module = await import('../../pkg/wasm_babylon_mandelbulb/wasm_babylon_mandelbulb.js');
-        console.log('[BabylonMandelbulb] import successful', module);
-        if (typeof module !== 'object' || module === null) {
+        // Match hello-wasm pattern: explicit unknown type for import result
+        const moduleUnknown: unknown = await import('../../pkg/wasm_babylon_mandelbulb/wasm_babylon_mandelbulb.js');
+        console.log('[BabylonMandelbulb] import successful', moduleUnknown);
+
+        if (typeof moduleUnknown !== 'object' || moduleUnknown === null) {
             throw new Error('Imported module is not an object');
         }
 
+        // Validate required exports exist
+        if (!('default' in moduleUnknown) || typeof (moduleUnknown as any).default !== 'function') {
+            throw new Error('Module missing default export or it is not a function');
+        }
+        if (!('get_palette' in moduleUnknown) || typeof (moduleUnknown as any).get_palette !== 'function') {
+            throw new Error('Module missing get_palette export');
+        }
+        if (!('get_default_config' in moduleUnknown) || typeof (moduleUnknown as any).get_default_config !== 'function') {
+            throw new Error('Module missing get_default_config export');
+        }
+        if (!('get_flat_palette' in moduleUnknown) || typeof (moduleUnknown as any).get_flat_palette !== 'function') {
+            throw new Error('Module missing get_flat_palette export');
+        }
+
+        // Assign with safer typing
         wasmModuleExports = {
-            default: (module.default as () => Promise<unknown>),
-            get_palette: module.get_palette as any,
-            get_default_config: module.get_default_config as any,
-            get_flat_palette: module.get_flat_palette as any,
+            default: (moduleUnknown as any).default,
+            get_palette: (moduleUnknown as any).get_palette,
+            get_default_config: (moduleUnknown as any).get_default_config,
+            get_flat_palette: (moduleUnknown as any).get_flat_palette,
         };
     }
     return wasmModuleExports.default();
@@ -198,9 +215,14 @@ export const init = async (): Promise<void> => {
     const iterValue = document.getElementById('iter-value');
     const statsEl = document.getElementById('stats');
 
-    if (!canvas) return;
+    if (!canvas) {
+        console.error('[BabylonMandelbulb] Canvas element "renderCanvas" not found');
+        if (errorEl) errorEl.textContent = 'Error: Canvas element not found';
+        return;
+    }
 
     try {
+        console.log('[BabylonMandelbulb] Loading WASM module...');
         STATE.wasmModule = await loadWasmModule<WasmModuleBabylonMandelbulb>(
             getInitWasm,
             validateMandelbulbModule
