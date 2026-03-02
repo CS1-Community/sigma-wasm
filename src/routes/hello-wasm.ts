@@ -351,8 +351,8 @@ export const init = async (): Promise<void> => {
   
   if (!counterDisplay || !messageDisplay || 
     !incrementBtn || !messageInputEl || !setMessageBtn
-    !setFaveTeamDisplay || !FaveTeamInputEl || !setFaveTeamBtn
-  ) {
+  )!setFaveTeamDisplay || !FaveTeamInputEl || !setFaveTeamBtn;
+   {
     throw new Error('Required UI elements not found');
   }
   
@@ -413,5 +413,5 @@ export const init = async (): Promise<void> => {
       }
     }
   });
-};
+;}
 
