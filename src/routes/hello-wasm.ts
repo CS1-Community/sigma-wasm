@@ -31,6 +31,10 @@ let wasmModuleExports: {
   set_message: (message: string) => void;
   get_favorite_team: () => string;
   set_favorite_team: (Giants: string) => void;
+  get_fave_gum: () => string;
+  set_fave_gum: (gum: string) => void;
+  get_fave_squishy: () => string;
+  set_fave_squishy: (squishy: string) => void;
 } | null = null;
 
 /**
@@ -78,6 +82,17 @@ const getInitWasm = async (): Promise<unknown> => {
     }
     if ('set_fave_team' in moduleUnknown) {
       moduleKeys.push('set_fave_team');
+    if ('get_fave_gum' in moduleUnknown) {
+      moduleKeys.push('get_fave_gum');
+    }
+    if ('set_fave_gum' in moduleUnknown) {
+      moduleKeys.push('set_fave_gum');
+    }
+    if ('get_fave_squishy' in moduleUnknown) {
+      moduleKeys.push('get_fave_squishy');
+    }
+    if ('set_fave_squishy' in moduleUnknown) {
+      moduleKeys.push('set_fave_squishy');
     }
     
     // Get all keys for error messages
@@ -108,6 +123,17 @@ const getInitWasm = async (): Promise<unknown> => {
     }
     if (!('set_fave_team' in moduleUnknown) || typeof moduleUnknown.set_fave_team !== 'function') {
       throw new Error(`Module missing 'set_fave_team' export. Available: ${allKeys.join(', ')}`);
+    if (!('get_fave_gum' in moduleUnknown) || typeof moduleUnknown.get_fave_gum !== 'function') {
+      throw new Error(`Module missing 'get_fave_gum' export. Available: ${allKeys.join(', ')}`);
+    }
+    if (!('set_fave_gum' in moduleUnknown) || typeof moduleUnknown.set_fave_gum !== 'function') {
+      throw new Error(`Module missing 'set_fave_gum' export. Available: ${allKeys.join(', ')}`);
+    }
+    if (!('get_fave_squishy' in moduleUnknown) || typeof moduleUnknown.get_fave_squishy !== 'function') {
+      throw new Error(`Module missing 'get_fave_squishy' export. Available: ${allKeys.join(', ')}`);
+    }
+    if (!('set_fave_squishy' in moduleUnknown) || typeof moduleUnknown.set_fave_squishy !== 'function') {
+      throw new Error(`Module missing 'set_fave_squishy' export. Available: ${allKeys.join(', ')}`);
     }
     
     // Extract and assign functions - we've validated they exist and are functions above
@@ -120,6 +146,10 @@ const getInitWasm = async (): Promise<unknown> => {
     const setMessageFunc = moduleUnknown.set_message;
     const getFaveTeamFunc = moduleUnknown.get_fave_Team;
     const setFaveTeamFunc = moduleUnknown.set_fave_team;
+    const getFaveGumFunc = moduleUnknown.get_fave_gum;
+    const setFaveGumFunc = moduleUnknown.set_fave_gum;
+    const getFaveSquishyFunc = moduleUnknown.get_fave_squishy;
+    const setFaveSquishyFunc = moduleUnknown.set_fave_squishy;
     
     if (typeof defaultFunc !== 'function') {
       throw new Error('default export is not a function');
@@ -144,6 +174,17 @@ const getInitWasm = async (): Promise<unknown> => {
     }
     if (typeof setFaveTeamFunc !== 'function') {
       throw new Error('set_fave_team export is not a function');
+    if (typeof getFaveGumFunc !== 'function') {
+      throw new Error('get_fave_gum export is not a function');
+    }
+    if (typeof setFaveGumFunc !== 'function') {
+      throw new Error('set_fave_gum export is not a function');
+    }
+    if (typeof getFaveSquishyFunc !== 'function') {
+      throw new Error('get_fave_squishy export is not a function');
+    }
+    if (typeof setFaveSquishyFunc !== 'function') {
+      throw new Error('set_fave_squishy export is not a function');
     }
     
     // TypeScript can't narrow Function to specific signatures after validation
@@ -165,6 +206,14 @@ const getInitWasm = async (): Promise<unknown> => {
       get_favorite_team: getFaveTeamFunc as () => string,
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       set_favorite_team: setFaveTeamFunc as (team: string) => void,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      get_fave_gum: getFaveGumFunc as () => string,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      set_fave_gum: setFaveGumFunc as (gum: string) => void,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      get_fave_squishy: getFaveSquishyFunc as () => string,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      set_fave_squishy: setFaveSquishyFunc as (squishy: string) => void,
     };
   }
   if (!wasmModuleExports) {
@@ -248,6 +297,17 @@ function validateHelloModule(exports: unknown): WasmModuleHello | null {
     }
     if (typeof wasmModuleExports.set_fave_team !== 'function') {
       missingExports.push('set_fave_team (function)');
+    if (typeof wasmModuleExports.get_fave_gum !== 'function') {
+      missingExports.push('get_fave_gum (function)');
+    }
+    if (typeof wasmModuleExports.set_fave_gum !== 'function') {
+      missingExports.push('set_fave_gum (function)');
+    }
+    if (typeof wasmModuleExports.get_fave_squishy !== 'function') {
+      missingExports.push('get_fave_squishy (function)');
+    }
+    if (typeof wasmModuleExports.set_fave_squishy !== 'function') {
+      missingExports.push('set_fave_squishy (function)');
     }
   }
   
@@ -275,6 +335,10 @@ function validateHelloModule(exports: unknown): WasmModuleHello | null {
     set_message: wasmModuleExports.set_message,
     get_fave_team: wasmModuleExports.get_fave_team,
     set_fave_team: wasmModuleExports.set_fave_team,
+    get_fave_gum: wasmModuleExports.get_fave_gum,
+    set_fave_gum: wasmModuleExports.set_fave_gum,
+    get_fave_squishy: wasmModuleExports.get_fave_squishy,
+    set_fave_squishy: wasmModuleExports.set_fave_squishy,
   };
 }
 
@@ -353,6 +417,21 @@ export const init = async (): Promise<void> => {
     !incrementBtn || !messageInputEl || !setMessageBtn
   )!setFaveTeamDisplay || !FaveTeamInputEl || !setFaveTeamBtn;
    {
+  const faveGumDisplay = document.getElementById('fave-gum-display');
+  const faveSquishyDisplay = document.getElementById('fave-squishy-display');
+  const incrementBtn = document.getElementById('increment-btn');
+  const messageInputEl = document.getElementById('message-input');
+  const setMessageBtn = document.getElementById('set-message-btn');
+  const faveGumInputEl = document.getElementById('fave-gum-input');
+  const setFaveGumBtn = document.getElementById('set-fave-gum-btn');
+  const faveSquishyInputEl = document.getElementById('fave-squishy-input');
+  const setFaveSquishyBtn = document.getElementById('set-fave-squishy-btn');
+  
+  if (!counterDisplay || !messageDisplay || 
+    !incrementBtn || !messageInputEl || !setMessageBtn ||
+    !faveGumDisplay || !faveGumInputEl || !setFaveGumBtn ||
+    !faveSquishyDisplay || !faveSquishyInputEl || !setFaveSquishyBtn
+  ) {
     throw new Error('Required UI elements not found');
   }
   
@@ -372,6 +451,19 @@ export const init = async (): Promise<void> => {
   
 
 
+  // Type narrowing for input element
+  if (!(faveGumInputEl instanceof HTMLInputElement)) {
+    throw new Error('fave-gum-input element is not an HTMLInputElement');
+  }
+  
+  const faveGumInput = faveGumInputEl;
+
+  // Type narrowing for input element
+  if (!(faveSquishyInputEl instanceof HTMLInputElement)) {
+    throw new Error('fave-squishy-input element is not an HTMLInputElement');
+  }
+  
+  const faveSquishyInput = faveSquishyInputEl;
   
   // Update display with initial values
   // **Learning Point**: We call WASM functions directly from TypeScript.
@@ -379,6 +471,8 @@ export const init = async (): Promise<void> => {
   if (WASM_HELLO.wasmModule) {
     counterDisplay.textContent = WASM_HELLO.wasmModule.get_counter().toString();
     messageDisplay.textContent = WASM_HELLO.wasmModule.get_message();
+    faveGumDisplay.textContent = WASM_HELLO.wasmModule.get_fave_gum();
+    faveSquishyDisplay.textContent = WASM_HELLO.wasmModule.get_fave_squishy();
   }
   
   // Set up event handlers
@@ -414,4 +508,51 @@ export const init = async (): Promise<void> => {
     }
   });
 ;}
+
+  setFaveGumBtn.addEventListener('click', () => {
+    if (WASM_HELLO.wasmModule && faveGumInput) {
+      const newGum = faveGumInput.value.trim();
+      if (newGum) {
+        WASM_HELLO.wasmModule.set_fave_gum(newGum);
+        faveGumDisplay.textContent = WASM_HELLO.wasmModule.get_fave_gum();
+        faveGumInput.value = '';
+      }
+    }
+  });
+
+  // Allow Enter key to set message
+  faveGumInput.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && WASM_HELLO.wasmModule) {
+      const newGum = faveGumInput.value.trim();
+      if (newGum) {
+        WASM_HELLO.wasmModule.set_fave_gum(newGum);
+        faveGumDisplay.textContent = WASM_HELLO.wasmModule.get_fave_gum();
+        faveGumInput.value = '';
+      }
+    }
+  });
+
+  setFaveSquishyBtn.addEventListener('click', () => {
+    if (WASM_HELLO.wasmModule && faveSquishyInput) {
+      const newSquishy = faveSquishyInput.value.trim();
+      if (newSquishy) {
+        WASM_HELLO.wasmModule.set_fave_squishy(newSquishy);
+        faveSquishyDisplay.textContent = WASM_HELLO.wasmModule.get_fave_squishy();
+        faveSquishyInput.value = '';
+      }
+    }
+  });
+
+  // Allow Enter key to set favorite squishy
+  faveSquishyInput.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && WASM_HELLO.wasmModule) {
+      const newSquishy = faveSquishyInput.value.trim();
+      if (newSquishy) {
+        WASM_HELLO.wasmModule.set_fave_squishy(newSquishy);
+        faveSquishyDisplay.textContent = WASM_HELLO.wasmModule.get_fave_squishy();
+        faveSquishyInput.value = '';
+      }
+    }
+  });
+};
 

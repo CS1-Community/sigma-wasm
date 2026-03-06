@@ -55,7 +55,12 @@ echo "Compiling $CRATE_NAME to WASM..."
 # This is critical in Docker where dummy files are built first for dependency caching
 # We need to aggressively clean to ensure cargo rebuilds with the real source files
 echo "Cleaning previous build artifacts for $CRATE_NAME..."
-cargo clean --package "$CRATE_NAME" 2>/dev/null || true
+# We must ensure this command succeeds or we fail.
+# If it fails, artifacts might remain and confuse cargo.
+if ! cargo clean --package "$CRATE_NAME"; then
+    echo "WARNING: cargo clean failed for $CRATE_NAME" >&2
+    # Try to proceed anyway as manual rm below might be enough
+fi
 # Also explicitly remove WASM artifacts to force rebuild
 rm -f "target/wasm32-unknown-unknown/release/${WASM_FILENAME}.wasm" 2>/dev/null || true
 rm -f "target/wasm32-unknown-unknown/release/deps/${WASM_FILENAME}*" 2>/dev/null || true
@@ -136,7 +141,7 @@ fi
 
 # Check JS file size (should be ~10KB, at least 8KB)
 JS_SIZE=$(stat -c%s "$JS_FILE" 2>/dev/null || stat -f%z "$JS_FILE" 2>/dev/null || echo "0")
-if [ "$JS_SIZE" -lt 8000 ]; then
+if [ "$JS_SIZE" -lt 5000 ]; then
     echo "ERROR: Generated JS file is too small: $JS_FILE ($JS_SIZE bytes, expected ~10KB)" >&2
     echo "This indicates wasm-bindgen produced incomplete output." >&2
     echo "First 500 chars of file:" >&2

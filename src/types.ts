@@ -197,6 +197,10 @@ export interface WasmModuleHello {
   set_message(message: string): void;
   get_fave_team(): string;
   set_fave_team(team: string): void;
+  get_fave_gum(): string;
+  set_fave_gum(gum: string): void;
+  get_fave_squishy(): string;
+  set_fave_squishy(squishy: string): void;
 }
 
 export interface WasmHello {
@@ -383,3 +387,34 @@ export interface TextStats {
   averageWordLength: number;
 }
 
+// Fractal zoom module types
+export interface WasmModuleFractalZoom {
+  memory: WebAssembly.Memory;
+  generate_fractal(
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    zoom: number,
+    maxIters: number,
+    paletteId: number
+  ): Uint8Array;
+}
+
+export interface WasmFractalZoom {
+  wasmModule: WasmModuleFractalZoom | null;
+  wasmModulePath: string;
+}
+
+export interface WasmBabylonMandelbulb {
+  wasmModule: WasmModuleBabylonMandelbulb | null;
+  wasmModulePath: string;
+}
+
+// Babylon Mandelbulb module types
+export interface WasmModuleBabylonMandelbulb {
+  memory: WebAssembly.Memory;
+  get_palette(id: number): any;
+  get_default_config(): any;
+  get_flat_palette(id: number): Float32Array;
+}

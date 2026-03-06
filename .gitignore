@@ -25,7 +25,8 @@ wasm_astar
 #######################################
 /target/
 **/*.rs.bk
-Cargo.lock
+# Cargo.lock should be committed for reproducible builds in web/binary projects
+# Cargo.lock
 
 #######################################
 # node/npm

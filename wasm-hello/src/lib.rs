@@ -18,6 +18,10 @@ struct HelloState {
     message: String,
     /// Message string that can be set and retrieved
     team: String,
+    /// Gum string that can be set and retrieved
+    gum: String,
+    /// Squishy string that can be set and retrieved
+    squishy: String,
 }
 
 impl HelloState {
@@ -27,6 +31,8 @@ impl HelloState {
             counter: 0,
             message: String::from("Rust WASM is so Sigma!"),
             team: String::from("Giants"),
+            gum: String::from("Hubba Bubba"),
+            squishy: String::from("Stress Ball"),
         }
     }
     
@@ -58,6 +64,24 @@ impl HelloState {
     /// Set a new message
     fn set_fave_team(&mut self, team: String) {
         self.team = team;
+    /// Get the current gum
+    fn get_fave_gum(&self) -> String {
+        self.gum.clone()
+    }
+    
+    /// Set a new gum
+    fn set_fave_gum(&mut self, gum: String) {
+        self.gum = gum;
+    }
+
+    /// Get the current squishy
+    fn get_fave_squishy(&self) -> String {
+        self.squishy.clone()
+    }
+    
+    /// Set a new squishy
+    fn set_fave_squishy(&mut self, squishy: String) {
+        self.squishy = squishy;
     }
 }
 
@@ -145,6 +169,7 @@ pub fn set_message(message: String) {
 }
 
 /// Get the current team
+/// Get the current gum
 /// 
 /// **Learning Point**: Strings in Rust need to be converted to JavaScript strings.
 /// `wasm-bindgen` handles this automatically when you return a `String` from a
@@ -158,6 +183,14 @@ pub fn get_fave_team() -> String {
 }
 
 /// Set a new team
+/// @returns The current gum as a JavaScript string
+#[wasm_bindgen]
+pub fn get_fave_gum() -> String {
+    let state = HELLO_STATE.lock().unwrap();
+    state.get_fave_gum()
+}
+
+/// Set a new gum
 /// 
 /// **Learning Point**: JavaScript strings are automatically converted to Rust `String`
 /// when passed as parameters to `#[wasm_bindgen]` functions.
@@ -172,4 +205,37 @@ pub fn set_fave_team(team: String) {
 }
 
 
+/// @param gum - The new gum to set
+#[wasm_bindgen]
+pub fn set_fave_gum(gum: String) {
+    let mut state = HELLO_STATE.lock().unwrap();
+    state.set_fave_gum(gum);
+}
+
+/// Get the current squishy
+/// 
+/// **Learning Point**: Strings in Rust need to be converted to JavaScript strings.
+/// `wasm-bindgen` handles this automatically when you return a `String` from a
+/// `#[wasm_bindgen]` function.
+/// 
+/// @returns The current squishy as a JavaScript string
+#[wasm_bindgen]
+pub fn get_fave_squishy() -> String {
+    let state = HELLO_STATE.lock().unwrap();
+    state.get_fave_squishy()
+}
+
+/// Set a new squishy
+/// 
+/// **Learning Point**: JavaScript strings are automatically converted to Rust `String`
+/// when passed as parameters to `#[wasm_bindgen]` functions.
+/// 
+/// **To extend**: You could add validation, length limits, or formatting here.
+/// 
+/// @param squishy - The new squishy to set
+#[wasm_bindgen]
+pub fn set_fave_squishy(squishy: String) {
+    let mut state = HELLO_STATE.lock().unwrap();
+    state.set_fave_squishy(squishy);
+}
 

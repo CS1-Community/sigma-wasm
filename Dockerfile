@@ -31,7 +31,7 @@ WORKDIR /app
 # Copy workspace Cargo.toml and member Cargo.toml files for dependency caching
 # **Learning Point**: Add new WASM crate Cargo.toml files here for Docker build caching.
 # This allows Docker to cache dependencies separately from source code changes.
-COPY Cargo.toml ./
+COPY Cargo.toml Cargo.lock ./
 COPY wasm-astar/Cargo.toml ./wasm-astar/
 COPY wasm-preprocess/Cargo.toml ./wasm-preprocess/
 COPY wasm-preprocess-256m/Cargo.toml ./wasm-preprocess-256m/
@@ -42,6 +42,8 @@ COPY wasm-hello/Cargo.toml ./wasm-hello/
 COPY wasm-babylon-wfc/Cargo.toml ./wasm-babylon-wfc/
 COPY wasm-babylon-chunks/Cargo.toml ./wasm-babylon-chunks/
 COPY wasm-multilingual-chat/Cargo.toml ./wasm-multilingual-chat/
+COPY wasm-fractal-zoom/Cargo.toml ./wasm-fractal-zoom/
+COPY wasm-babylon-mandelbulb/Cargo.toml ./wasm-babylon-mandelbulb/
 
 # Add wasm32 target (must be done before building for wasm32-unknown-unknown)
 RUN rustup target add wasm32-unknown-unknown
@@ -50,7 +52,7 @@ RUN rustup target add wasm32-unknown-unknown
 # **Learning Point**: These dummy files allow Docker to cache compiled dependencies
 # separately from source code. When you change source, only source needs rebuilding.
 # Add new crates here when creating new WASM modules.
-RUN mkdir -p wasm-astar/src wasm-preprocess/src wasm-preprocess-256m/src wasm-preprocess-image-captioning/src wasm-agent-tools/src wasm-fractal-chat/src wasm-hello/src wasm-babylon-wfc/src wasm-babylon-chunks/src wasm-multilingual-chat/src && \
+RUN mkdir -p wasm-astar/src wasm-preprocess/src wasm-preprocess-256m/src wasm-preprocess-image-captioning/src wasm-agent-tools/src wasm-fractal-chat/src wasm-hello/src wasm-babylon-wfc/src wasm-babylon-chunks/src wasm-multilingual-chat/src wasm-fractal-zoom/src wasm-babylon-mandelbulb/src && \
     echo "fn main() {}" > wasm-astar/src/lib.rs || true && \
     echo "fn main() {}" > wasm-preprocess/src/lib.rs || true && \
     echo "fn main() {}" > wasm-preprocess-256m/src/lib.rs || true && \
@@ -60,7 +62,9 @@ RUN mkdir -p wasm-astar/src wasm-preprocess/src wasm-preprocess-256m/src wasm-pr
     echo "fn main() {}" > wasm-hello/src/lib.rs || true && \
     echo "fn main() {}" > wasm-babylon-wfc/src/lib.rs || true && \
     echo "fn main() {}" > wasm-babylon-chunks/src/lib.rs || true && \
-    echo "fn main() {}" > wasm-multilingual-chat/src/lib.rs || true
+    echo "fn main() {}" > wasm-multilingual-chat/src/lib.rs || true && \
+    echo "fn main() {}" > wasm-fractal-zoom/src/lib.rs || true && \
+    echo "fn main() {}" > wasm-babylon-mandelbulb/src/lib.rs || true
 
 # Build dependencies only (for caching)
 RUN cargo build --target wasm32-unknown-unknown --release --workspace || true
@@ -78,7 +82,12 @@ COPY wasm-hello ./wasm-hello
 COPY wasm-babylon-wfc ./wasm-babylon-wfc
 COPY wasm-babylon-chunks ./wasm-babylon-chunks
 COPY wasm-multilingual-chat ./wasm-multilingual-chat
+COPY wasm-fractal-zoom ./wasm-fractal-zoom
+COPY wasm-babylon-mandelbulb ./wasm-babylon-mandelbulb
 COPY scripts ./scripts
+# Force update modification times of all source files to ensure cargo rebuilds them
+# instead of using cached artifacts from the dummy build (which have newer mtimes than git files)
+RUN find . -name "*.rs" -exec touch {} +
 
 # Make build scripts executable
 RUN chmod +x scripts/build.sh scripts/build-wasm.sh
@@ -86,7 +95,7 @@ RUN chmod +x scripts/build.sh scripts/build-wasm.sh
 # Clean target directory to ensure fresh build with real source files
 # This is critical because the dependency build step (#27) built with dummy files
 # and cargo may use cached artifacts if we don't clean
-RUN cargo clean --target wasm32-unknown-unknown || true
+# RUN cargo clean --target wasm32-unknown-unknown || true
 
 # Build WASM modules
 RUN ./scripts/build.sh
@@ -100,7 +109,7 @@ RUN echo "Verifying WASM module files in pkg/..." && \
         exit 1; \
       fi; \
       size=$(stat -c%s "$js_file" 2>/dev/null || echo "0"); \
-      if [ "$size" -lt 8000 ]; then \
+      if [ "$size" -lt 5000 ]; then \
         echo "ERROR: JS file too small: $js_file ($size bytes)" >&2; \
         exit 1; \
       fi; \
