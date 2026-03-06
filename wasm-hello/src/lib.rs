@@ -16,6 +16,8 @@ struct HelloState {
     counter: i32,
     /// Message string that can be set and retrieved
     message: String,
+    /// Message string that can be set and retrieved
+    team: String,
     /// Gum string that can be set and retrieved
     gum: String,
     /// Squishy string that can be set and retrieved
@@ -28,6 +30,7 @@ impl HelloState {
         HelloState {
             counter: 0,
             message: String::from("Rust WASM is so Sigma!"),
+            team: String::from("Giants"),
             gum: String::from("Hubba Bubba"),
             squishy: String::from("Stress Ball"),
         }
@@ -53,6 +56,14 @@ impl HelloState {
         self.message = message;
     }
 
+    /// Get the current message
+    fn get_fave_team(&self) -> String {
+        self.team.clone()
+    }
+    
+    /// Set a new message
+    fn set_fave_team(&mut self, team: String) {
+        self.team = team;
     /// Get the current gum
     fn get_fave_gum(&self) -> String {
         self.gum.clone()
@@ -157,12 +168,21 @@ pub fn set_message(message: String) {
     state.set_message(message);
 }
 
+/// Get the current team
 /// Get the current gum
 /// 
 /// **Learning Point**: Strings in Rust need to be converted to JavaScript strings.
 /// `wasm-bindgen` handles this automatically when you return a `String` from a
 /// `#[wasm_bindgen]` function.
 /// 
+/// @returns The current team as a JavaScript string
+#[wasm_bindgen]
+pub fn get_fave_team() -> String {
+    let state = HELLO_STATE.lock().unwrap();
+    state.get_fave_team()
+}
+
+/// Set a new team
 /// @returns The current gum as a JavaScript string
 #[wasm_bindgen]
 pub fn get_fave_gum() -> String {
@@ -177,6 +197,14 @@ pub fn get_fave_gum() -> String {
 /// 
 /// **To extend**: You could add validation, length limits, or formatting here.
 /// 
+/// @param team - The new team to set
+#[wasm_bindgen]
+pub fn set_fave_team(team: String) {
+    let mut state = HELLO_STATE.lock().unwrap();
+    state.set_fave_team(team);
+}
+
+
 /// @param gum - The new gum to set
 #[wasm_bindgen]
 pub fn set_fave_gum(gum: String) {

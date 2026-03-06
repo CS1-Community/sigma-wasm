@@ -29,6 +29,8 @@ let wasmModuleExports: {
   increment_counter: () => void;
   get_message: () => string;
   set_message: (message: string) => void;
+  get_favorite_team: () => string;
+  set_favorite_team: (Giants: string) => void;
   get_fave_gum: () => string;
   set_fave_gum: (gum: string) => void;
   get_fave_squishy: () => string;
@@ -75,6 +77,11 @@ const getInitWasm = async (): Promise<unknown> => {
     if ('set_message' in moduleUnknown) {
       moduleKeys.push('set_message');
     }
+    if ('get_fave_team' in moduleUnknown) {
+      moduleKeys.push('get_fave_team');
+    }
+    if ('set_fave_team' in moduleUnknown) {
+      moduleKeys.push('set_fave_team');
     if ('get_fave_gum' in moduleUnknown) {
       moduleKeys.push('get_fave_gum');
     }
@@ -111,6 +118,11 @@ const getInitWasm = async (): Promise<unknown> => {
     if (!('set_message' in moduleUnknown) || typeof moduleUnknown.set_message !== 'function') {
       throw new Error(`Module missing 'set_message' export. Available: ${allKeys.join(', ')}`);
     }
+    if (!('get_fave_team' in moduleUnknown) || typeof moduleUnknown.get_fave_team !== 'function') {
+      throw new Error(`Module missing 'get_fave_team' export. Available: ${allKeys.join(', ')}`);
+    }
+    if (!('set_fave_team' in moduleUnknown) || typeof moduleUnknown.set_fave_team !== 'function') {
+      throw new Error(`Module missing 'set_fave_team' export. Available: ${allKeys.join(', ')}`);
     if (!('get_fave_gum' in moduleUnknown) || typeof moduleUnknown.get_fave_gum !== 'function') {
       throw new Error(`Module missing 'get_fave_gum' export. Available: ${allKeys.join(', ')}`);
     }
@@ -132,6 +144,8 @@ const getInitWasm = async (): Promise<unknown> => {
     const incrementCounterFunc = moduleUnknown.increment_counter;
     const getMessageFunc = moduleUnknown.get_message;
     const setMessageFunc = moduleUnknown.set_message;
+    const getFaveTeamFunc = moduleUnknown.get_fave_Team;
+    const setFaveTeamFunc = moduleUnknown.set_fave_team;
     const getFaveGumFunc = moduleUnknown.get_fave_gum;
     const setFaveGumFunc = moduleUnknown.set_fave_gum;
     const getFaveSquishyFunc = moduleUnknown.get_fave_squishy;
@@ -155,6 +169,11 @@ const getInitWasm = async (): Promise<unknown> => {
     if (typeof setMessageFunc !== 'function') {
       throw new Error('set_message export is not a function');
     }
+    if (typeof getFaveTeamFunc !== 'function') {
+      throw new Error('get_fave_team export is not a function');
+    }
+    if (typeof setFaveTeamFunc !== 'function') {
+      throw new Error('set_fave_team export is not a function');
     if (typeof getFaveGumFunc !== 'function') {
       throw new Error('get_fave_gum export is not a function');
     }
@@ -183,6 +202,10 @@ const getInitWasm = async (): Promise<unknown> => {
       get_message: getMessageFunc as () => string,
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       set_message: setMessageFunc as (message: string) => void,
+       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      get_favorite_team: getFaveTeamFunc as () => string,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      set_favorite_team: setFaveTeamFunc as (team: string) => void,
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       get_fave_gum: getFaveGumFunc as () => string,
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -269,6 +292,11 @@ function validateHelloModule(exports: unknown): WasmModuleHello | null {
     if (typeof wasmModuleExports.set_message !== 'function') {
       missingExports.push('set_message (function)');
     }
+    if (typeof wasmModuleExports.get_fave_team !== 'function') {
+      missingExports.push('get_fave_team (function)');
+    }
+    if (typeof wasmModuleExports.set_fave_team !== 'function') {
+      missingExports.push('set_fave_team (function)');
     if (typeof wasmModuleExports.get_fave_gum !== 'function') {
       missingExports.push('get_fave_gum (function)');
     }
@@ -305,6 +333,8 @@ function validateHelloModule(exports: unknown): WasmModuleHello | null {
     increment_counter: wasmModuleExports.increment_counter,
     get_message: wasmModuleExports.get_message,
     set_message: wasmModuleExports.set_message,
+    get_fave_team: wasmModuleExports.get_fave_team,
+    set_fave_team: wasmModuleExports.set_fave_team,
     get_fave_gum: wasmModuleExports.get_fave_gum,
     set_fave_gum: wasmModuleExports.set_fave_gum,
     get_fave_squishy: wasmModuleExports.get_fave_squishy,
@@ -376,6 +406,17 @@ export const init = async (): Promise<void> => {
   // Get UI elements
   const counterDisplay = document.getElementById('counter-display');
   const messageDisplay = document.getElementById('message-display');
+  const faveTeamDisplay = document.getElementById('fave-team-display');
+  const incrementBtn = document.getElementById('increment-btn');
+  const messageInputEl = document.getElementById('message-input');
+  const setMessageBtn = document.getElementById('set-message-btn');
+  const faveTeamInputEl = document.getElementById('fave-team-input');
+  const setFaveTeamBtn = document.getElementById('set-fave-team-btn');
+  
+  if (!counterDisplay || !messageDisplay || 
+    !incrementBtn || !messageInputEl || !setMessageBtn
+  )!setFaveTeamDisplay || !FaveTeamInputEl || !setFaveTeamBtn;
+   {
   const faveGumDisplay = document.getElementById('fave-gum-display');
   const faveSquishyDisplay = document.getElementById('fave-squishy-display');
   const incrementBtn = document.getElementById('increment-btn');
@@ -400,6 +441,15 @@ export const init = async (): Promise<void> => {
   }
   
   const messageInput = messageInputEl;
+
+   // Type narrowing for input element
+  if (!(faveTeamInputEl instanceof HTMLInputElement)) {
+    throw new Error('gave-team-input element is not an HTMLInputElement');
+  }
+  
+  const faveTeamInput = faveTeamInputEl;
+  
+
 
   // Type narrowing for input element
   if (!(faveGumInputEl instanceof HTMLInputElement)) {
@@ -457,6 +507,7 @@ export const init = async (): Promise<void> => {
       }
     }
   });
+;}
 
   setFaveGumBtn.addEventListener('click', () => {
     if (WASM_HELLO.wasmModule && faveGumInput) {
