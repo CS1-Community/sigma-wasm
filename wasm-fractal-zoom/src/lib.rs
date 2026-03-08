@@ -28,16 +28,33 @@ const PALETTE1: [Color; 5] = [
     Color { r: 255, g: 128, b: 0 },  // Neon Orange
 ];
 
+const PALETTE2: [Color; 8] = [
+    Color { r: 0, g: 113, b: 94 },
+    Color { r: 16, g: 172, b: 168 },
+    Color { r: 26, g: 52, b: 255 },
+    Color { r: 136, g: 132, b: 253 },
+    Color { r: 174, g: 0, b: 100 },
+    Color { r: 252, g: 75, b: 117 },
+    Color { r: 122, g: 91, b: 0 },
+    Color { r: 169, g: 152, b: 12 }, 
+];
+
 pub fn get_color(iterations: f64, max_iterations: f64, palette_id: u32) -> (u8, u8, u8) {
     if iterations >= max_iterations {
         return (0, 0, 0);
     }
 
-    let palette = if palette_id == 0 { &PALETTE0 } else { &PALETTE1 };
+    let palette = match palette_id {
+        0 => PALETTE0.as_slice(),    // &[Color]
+        1 => PALETTE1.as_slice(),    // &[Color]
+        2 => PALETTE2.as_slice(),    // &[Color]
+        _ => PALETTE0.as_slice(),    // fallback
+    };
+
     let n = palette.len() as f64;
     let normalized = iterations / max_iterations;
     let scaled = normalized * (n - 1.0);
-    
+
     let idx1 = scaled.floor() as usize;
     let idx2 = (idx1 + 1).min(palette.len() - 1);
     let t = scaled - scaled.floor();
