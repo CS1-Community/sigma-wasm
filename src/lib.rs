@@ -51,6 +51,19 @@ extern "C" {
 static WORLD_STATE: LazyLock<Mutex<WorldState>> = LazyLock::new(|| Mutex::new(WorldState::new()));
 static ENGINE_STATE: LazyLock<Mutex<EngineState>> = LazyLock::new(|| Mutex::new(EngineState::new()));
 
+pub fn get_palette(id: u32) -> JsValue {
+    let colors = match id {
+        0 => PALETTE0.to_vec(),
+        1 => PALETTE1.to_vec(),
+        2 => PALETTE2.to_vec(),
+        _ => PALETTE0.to_vec(), // or handle invalid ids as needed
+    };
+
+    let palette = Palette { colors };
+    serde_wasm_bindgen::to_value(&palette).unwrap()
+}
+
+
 // Maps to WASM_ASTAR.layers on the client side
 enum Layer {
     TileBg = 0,
